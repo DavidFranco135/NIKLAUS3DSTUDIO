@@ -80,6 +80,21 @@ Sem `organization_id` direto — um usuário pode pertencer a múltiplas organiz
 
 `UNIQUE (organization_id, user_id)`.
 
+### refresh_tokens
+
+*(Adicionada na Fase 2 — não estava no desenho inicial, necessária para "logout" ser real: um refresh token JWT stateless não pode ser revogado antes de expirar.)*
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | UUID PK | |
+| user_id | UUID FK → users NOT NULL | |
+| token_hash | TEXT UNIQUE NOT NULL | SHA-256 do token; o valor em texto puro nunca é persistido |
+| expires_at | TIMESTAMPTZ NOT NULL | |
+| revoked_at | TIMESTAMPTZ NULL | setado no logout ou na rotação (refresh) |
+| created_at | TIMESTAMPTZ | |
+
+Login e `/auth/refresh` emitem um access token JWT stateless (15 min) e um refresh token opaco (rotativo, cookie httpOnly), cujo hash é a única coisa gravada aqui — permite revogação real no logout, o que um JWT puro não permitiria sem uma blocklist.
+
 ### roles / permissions (RBAC customizável — fase Enterprise)
 
 | Tabela | Colunas principais |

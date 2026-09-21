@@ -199,6 +199,7 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   ├── main.py
 │       │   ├── config.py
 │       │   ├── domain/              # regras de negócio puras, sem I/O
+│       │   │   ├── auth/            # Role, RBAC, DTOs de autenticação (Fase 2)
 │       │   │   ├── ai/
 │       │   │   │   ├── ports.py     # interfaces: AIProvider, ImageTo3DProvider, ...
 │       │   │   │   ├── orchestrator.py
@@ -207,8 +208,10 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
 │       │   │   ├── calculator/
-│       │   │   └── shared/
+│       │   │   └── shared/          # security.py (hash/JWT), exceptions.py, slug.py
 │       │   ├── application/         # use cases / services (orquestram domínio + repos)
+│       │   │   ├── auth/            # register, login, refresh, logout (Fase 2)
+│       │   │   ├── organizations/   # create_organization, add/remove/list_members (Fase 2)
 │       │   │   ├── projects/
 │       │   │   ├── ai_jobs/
 │       │   │   ├── orders/
@@ -228,13 +231,16 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   │   ├── prusaslicer/
 │       │   │   │   └── orcaslicer/
 │       │   │   ├── storage/         # S3Client, LocalFsClient (dev)
-│       │   │   ├── db/              # SQLAlchemy models, repositórios
+│       │   │   ├── db/              # SQLAlchemy models, repositórios, session
 │       │   │   └── queue/           # Celery app, tasks
 │       │   ├── interfaces/
 │       │   │   └── http/            # routers FastAPI, schemas Pydantic (DTO de API)
+│       │   │       ├── dependencies.py  # get_current_user, require_org_role
+│       │   │       ├── errors.py        # DomainError -> HTTPException
 │       │   │       ├── v1/
 │       │   │       │   ├── auth.py
 │       │   │       │   ├── users.py
+│       │   │       │   ├── organizations.py
 │       │   │       │   ├── projects.py
 │       │   │       │   ├── ai.py
 │       │   │       │   ├── files.py
@@ -248,6 +254,7 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │       ├── unit/
 │       │       ├── integration/
 │       │       └── api/
+│       ├── migrations/              # Alembic — colocado junto do app que possui os models
 │       └── pyproject.toml
 ├── workers/
 │   ├── ai_worker/                   # consome queue "ai" — requer GPU quando disponível
@@ -257,8 +264,7 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │   └── shared_python/               # código Python compartilhado entre api e workers (domain/, spec, DTOs)
 ├── infra/
 │   ├── docker/
-│   ├── k8s/                         # manifests futuros
-│   └── migrations/                  # Alembic
+│   └── k8s/                         # manifests futuros
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DATABASE.md

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     s3_bucket: str = "studio-files"
     s3_region: str = "us-east-1"
 
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = "change-me-in-production-please-use-a-random-32-byte-secret"
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 30
 

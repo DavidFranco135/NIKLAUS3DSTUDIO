@@ -2,7 +2,7 @@
 
 Plataforma SaaS multi-tenant de Inteligência Artificial para produção de impressão 3D — um "copiloto de produção 3D" que permite criar, converter, reparar, precificar e produzir peças 3D via chat, texto ou imagem, e administrar todo o negócio de impressão 3D (clientes, pedidos, estoque, impressoras, financeiro).
 
-> **Status atual: FASE 1 — Fundação (em andamento).** Arquitetura aprovada. Esqueleto de repositório, backend (FastAPI) e frontend (Next.js) criados, com Docker Compose e CI. Ainda sem autenticação, sem banco de dados em uso e sem nenhuma feature de negócio — isso começa na Fase 2.
+> **Status atual: FASE 2 — Autenticação e multi-tenancy (backend concluído).** Cadastro (cria organização + usuário OWNER), login, refresh/logout (JWT de acesso + refresh token rotativo em cookie httpOnly), RBAC por organização (OWNER/ADMIN/MANAGER/OPERATOR/VIEWER) e isolamento entre tenants testado. Ainda sem telas de login/cadastro no frontend e sem nenhuma feature de negócio (projetos, clientes, etc.) — isso começa na Fase 3.
 
 ## Como rodar localmente
 
@@ -14,6 +14,12 @@ docker compose up --build
 - API: http://localhost:8000/api/v1/health
 - Web: http://localhost:3000
 - MinIO console: http://localhost:9001
+
+Rodar as migrations (dentro do container `api`, ou localmente com o venv de `apps/api`):
+
+```bash
+alembic upgrade head
+```
 
 ## Documentação
 

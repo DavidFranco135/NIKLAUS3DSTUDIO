@@ -1,0 +1,26 @@
+from fastapi import HTTPException, status
+
+from src.domain.shared.exceptions import (
+    CannotRemoveLastOwnerError,
+    EmailAlreadyRegisteredError,
+    InvalidCredentialsError,
+    OrganizationNotFoundError,
+    RefreshTokenInvalidError,
+    UserAlreadyMemberError,
+    UserNotFoundError,
+)
+
+_STATUS_BY_ERROR = {
+    EmailAlreadyRegisteredError: status.HTTP_409_CONFLICT,
+    InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
+    RefreshTokenInvalidError: status.HTTP_401_UNAUTHORIZED,
+    OrganizationNotFoundError: status.HTTP_404_NOT_FOUND,
+    UserNotFoundError: status.HTTP_404_NOT_FOUND,
+    UserAlreadyMemberError: status.HTTP_409_CONFLICT,
+    CannotRemoveLastOwnerError: status.HTTP_409_CONFLICT,
+}
+
+
+def as_http_exception(exc: Exception) -> HTTPException:
+    status_code = _STATUS_BY_ERROR.get(type(exc), status.HTTP_400_BAD_REQUEST)
+    return HTTPException(status_code=status_code, detail=str(exc) or type(exc).__name__)
