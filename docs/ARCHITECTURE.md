@@ -224,15 +224,18 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   └── machines/
 │       │   ├── infrastructure/      # implementações concretas (adapters)
 │       │   │   ├── ai_providers/
-│       │   │   │   ├── mocks/       # MockLLMProvider, MockBoxCADProvider, providers generativos
-│       │   │   │   │                # placeholder (Fase 4) — substituídos por adapters reais
-│       │   │   │   │                # abaixo à medida que cada Fase 5-7 os integra, sem tocar
-│       │   │   │   │                # no orchestrator (é exatamente o ponto da abstração)
-│       │   │   │   ├── registry.py  # TaskType -> [providers], ordem = prioridade de fallback
-│       │   │   │   ├── hunyuan3d/
-│       │   │   │   ├── trellis/
-│       │   │   │   ├── stable_fast_3d/
-│       │   │   │   ├── spar3d/
+│       │   │   │   ├── mocks/       # MockLLMProvider, MockBoxCADProvider, MockImageTo3DProvider,
+│       │   │   │   │                # MockMeshRepairProvider, MockTextureProvider, providers
+│       │   │   │   │                # generativos placeholder (Fase 4-5) — todos sem GPU/API paga,
+│       │   │   │   │                # geometria/textura gerada em Python puro (stl_box.py,
+│       │   │   │   │                # solid_color_png.py), nenhuma dependência de trimesh/Pillow
+│       │   │   │   ├── stubs/       # Hunyuan3DProvider, TrellisProvider, StableFast3DProvider,
+│       │   │   │   │                # SPAR3DProvider (Fase 5) — implementam a interface real mas
+│       │   │   │   │                # levantam ProviderNotConfiguredError (sem GPU/licença
+│       │   │   │   │                # confirmada ainda); trocar por um adapter funcional não
+│       │   │   │   │                # muda o orchestrator nem o registry, só o corpo do método
+│       │   │   │   ├── registry.py  # TaskType -> [providers], ordem = prioridade de fallback;
+│       │   │   │   │                # também get_mesh_repair_provider()/get_texture_provider()
 │       │   │   │   ├── openscad_cad/
 │       │   │   │   └── llm/         # provider do LLM de NLU real (substitui o mock)
 │       │   │   ├── slicers/
@@ -443,9 +446,11 @@ class SlicerProvider(Protocol):
     def slice(self, mesh: MeshRef, printer_profile: PrinterProfile, material: MaterialProfile) -> SliceResult: ...
 ```
 
-`GenerationResult` / `MeshResult` / `SliceResult` / `PrintabilityReport` são DTOs imutáveis (Pydantic) — nunca objetos de SDK de terceiros vazando para fora de `infrastructure/`. Cada adapter concreto (`infrastructure/ai_providers/hunyuan3d/adapter.py`, etc.) implementa a interface correspondente e traduz erros do SDK externo para exceções de domínio (`ProviderUnavailableError`, `ProviderTimeoutError`, `InvalidSpecificationError`).
+`GenerationResult` / `MeshResult` / `SliceResult` / `PrintabilityReport` são DTOs imutáveis (Pydantic/dataclass) — nunca objetos de SDK de terceiros vazando para fora de `infrastructure/`. Cada adapter concreto (`infrastructure/ai_providers/stubs/hunyuan3d.py`, etc.) implementa a interface correspondente e traduz erros do SDK externo para exceções de domínio (`ProviderUnavailableError`, `ProviderNotConfiguredError`, ...).
 
-Registro de providers é feito por configuração (não hardcoded):
+**Status na Fase 5:** `TextTo3DProvider` e `CADProvider` têm mocks funcionais (Fase 4); `ImageTo3DProvider`, `MeshRepairProvider` e `TextureProvider` ganharam mocks funcionais nesta fase (`MockImageTo3DProvider`, `MockMeshRepairProvider`, `MockTextureProvider` — geometria/textura geradas em Python puro, sem GPU). `PrintabilityProvider` e `SlicerProvider` ainda não existem (Fases 9-10). Os quatro candidatos de `AI-LICENSES.md` (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface real e levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem baixar/rodar modelo local sem GPU confirmada nesta máquina (ver `AI-LICENSES.md`).
+
+Registro de providers é feito em Python (`registry.py`), não pelo YAML abaixo — o exemplo permanece como direção futura (útil quando o número de providers/prioridades justificar configuração externa em vez de uma lista no código):
 
 ```yaml
 # infra/config/ai_providers.yaml

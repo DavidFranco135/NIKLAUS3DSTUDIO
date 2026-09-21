@@ -10,6 +10,7 @@ from src.domain.shared.exceptions import (
     OrganizationNotFoundError,
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
+    ProviderNotConfiguredError,
     RefreshTokenInvalidError,
     StorageUnavailableError,
     UnsupportedFileKindError,
@@ -32,6 +33,7 @@ _STATUS_BY_ERROR = {
     UnsupportedFileKindError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
     AIJobNotFoundError: status.HTTP_404_NOT_FOUND,
+    ProviderNotConfiguredError: status.HTTP_501_NOT_IMPLEMENTED,
 }
 
 

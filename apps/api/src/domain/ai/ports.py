@@ -32,6 +32,74 @@ class TextTo3DProvider(AIProvider, Protocol):
     def generate_from_text(self, spec: StructuredSpecification) -> GenerationResult: ...
 
 
+@dataclass(frozen=True)
+class ImageInput:
+    file_bytes: bytes
+    mime_type: str
+
+
+class ImageTo3DProvider(AIProvider, Protocol):
+    def generate_from_image(
+        self, image: ImageInput, spec: StructuredSpecification
+    ) -> GenerationResult: ...
+
+
+@dataclass(frozen=True)
+class MeshRef:
+    """Points at an existing mesh file (a `FileAsset`) rather than carrying its
+
+    bytes — mesh repair/optimize operates on something already in storage.
+    """
+
+    storage_key: str
+    mime_type: str
+
+
+@dataclass(frozen=True)
+class RepairOptions:
+    fill_holes: bool = True
+    remove_degenerate_faces: bool = True
+    fix_normals: bool = True
+
+
+@dataclass(frozen=True)
+class OptimizeOptions:
+    target_triangle_count: int | None = None
+    simplify: bool = True
+
+
+@dataclass(frozen=True)
+class MeshResult:
+    file_bytes: bytes
+    mime_type: str
+    kind: str
+    metadata: dict[str, Any]
+
+
+class MeshRepairProvider(AIProvider, Protocol):
+    def repair_mesh(self, mesh: MeshRef, options: RepairOptions) -> MeshResult: ...
+
+    def optimize_mesh(self, mesh: MeshRef, options: OptimizeOptions) -> MeshResult: ...
+
+
+@dataclass(frozen=True)
+class TextureSpec:
+    prompt: str | None = None
+    color_hint: str | None = None
+    resolution_px: int = 512
+
+
+@dataclass(frozen=True)
+class TextureResult:
+    file_bytes: bytes
+    mime_type: str
+    metadata: dict[str, Any]
+
+
+class TextureProvider(AIProvider, Protocol):
+    def generate_texture(self, mesh: MeshRef, spec: TextureSpec) -> TextureResult: ...
+
+
 class LLMProvider(Protocol):
     """NLU step: free text -> StructuredSpecification. Output is untrusted data,
 

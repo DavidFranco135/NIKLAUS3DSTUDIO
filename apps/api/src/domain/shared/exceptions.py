@@ -72,3 +72,13 @@ class AllProvidersFailedError(DomainError):
 
 class AIJobNotFoundError(DomainError):
     pass
+
+
+class ProviderNotConfiguredError(DomainError):
+    """Raised by a real-vendor provider stub (Hunyuan3D, TRELLIS, ...) that
+
+    implements the port but has no working engine behind it yet — pending
+    GPU infra and/or license confirmation (see docs/AI-LICENSES.md).
+    """
+
+    pass

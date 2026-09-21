@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field
 class TaskType(StrEnum):
     PARAMETRIC_CAD = "PARAMETRIC_CAD"
     TEXT_TO_GENERATIVE_3D = "TEXT_TO_GENERATIVE_3D"
+    # Reserved for Fase 6 (Image-to-3D): the port/DTOs/providers exist from Fase 5
+    # onward, but no endpoint routes a job here yet — that's real image analysis
+    # + segmentation work, not just another classifier branch.
+    IMAGE_TO_3D = "IMAGE_TO_3D"
 
 
 class Dimensions(BaseModel):

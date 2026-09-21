@@ -18,13 +18,17 @@
 
 ## Candidatos — Image-to-3D / Text-to-3D generativo
 
-| Modelo | Fornecedor/Origem | Licença (a reconfirmar na integração) | Uso comercial | Observações |
-|---|---|---|---|---|
-| **Hunyuan3D** (2 / 2.x) | Tencent | Licença própria "Tencent Hunyuan Community License" (não é MIT/Apache) | Historicamente com condições/restrições próprias — **verificar cláusulas de escala de usuários e região antes de assumir uso comercial livre** | Pesos e código costumam ter licenças separadas; verificar as duas |
-| **TRELLIS** | Microsoft Research | Licença de pesquisa (frequentemente MIT no código, mas pesos podem ter condição própria) | **Verificar se os pesos publicados têm a mesma licença do código** — projetos de research lab frequentemente restringem uso comercial dos pesos mesmo com código MIT | Checar model card no momento da integração |
-| **Stable Fast 3D** | Stability AI | Stability AI Community License (historicamente exige licença comercial paga acima de certa receita anual) | **Não assumir gratuito para uso comercial em escala** — Stability costuma exigir "Stability AI Membership" para empresas acima de um limite de receita | Reconfirmar termos vigentes antes de qualquer uso em produção |
-| **SPAR3D** | Stability AI | Mesma família de licenciamento da Stability AI (ver acima) | Mesma ressalva de limite de receita/membership | Reconfirmar |
-| Modelos futuros (TripoSR, Zero123++, InstantMesh, etc.) | Diversos | Variam por projeto | A verificar caso a caso | Nenhum entra na lista de providers ativos sem preencher este checklist |
+*(Status na Fase 5: cada modelo abaixo tem um **adapter stub** em `infrastructure/ai_providers/stubs/` — implementa a interface do provider (`ImageTo3DProvider`/`TextTo3DProvider`) e está registrado no `registry.py`, mas todo método levanta `ProviderNotConfiguredError` em vez de chamar um modelo de verdade. Isso existe para que a troca por um adapter real, quando a infra de GPU e a licença estiverem prontas, não exija tocar no AI Orchestrator nem no restante do sistema — só implementar o método do stub correspondente.)*
+
+| Modelo | Fornecedor/Origem | Licença (a reconfirmar na integração) | Uso comercial | Status | Observações |
+|---|---|---|---|---|---|
+| **Hunyuan3D** (2 / 2.x) | Tencent | Licença própria "Tencent Hunyuan Community License" (não é MIT/Apache) | Historicamente com condições/restrições próprias — **verificar cláusulas de escala de usuários e região antes de assumir uso comercial livre** | Stub (`stubs/hunyuan3d.py`) | Pesos e código costumam ter licenças separadas; verificar as duas. Único candidato com stub para as duas interfaces (image-to-3D **e** text-to-3D) |
+| **TRELLIS** | Microsoft Research | Licença de pesquisa (frequentemente MIT no código, mas pesos podem ter condição própria) | **Verificar se os pesos publicados têm a mesma licença do código** — projetos de research lab frequentemente restringem uso comercial dos pesos mesmo com código MIT | Stub (`stubs/trellis.py`) | Checar model card no momento da integração |
+| **Stable Fast 3D** | Stability AI | Stability AI Community License (historicamente exige licença comercial paga acima de certa receita anual) | **Não assumir gratuito para uso comercial em escala** — Stability costuma exigir "Stability AI Membership" para empresas acima de um limite de receita | Stub (`stubs/stable_fast_3d.py`) | Reconfirmar termos vigentes antes de qualquer uso em produção |
+| **SPAR3D** | Stability AI | Mesma família de licenciamento da Stability AI (ver acima) | Mesma ressalva de limite de receita/membership | Stub (`stubs/spar3d.py`) | Reconfirmar |
+| Modelos futuros (TripoSR, Zero123++, InstantMesh, etc.) | Diversos | Variam por projeto | A verificar caso a caso | Sem stub ainda | Nenhum entra na lista de providers ativos sem preencher este checklist |
+
+**Decisão explícita da Fase 5 (registrada aqui para não se perder):** nenhuma API paga de terceiros foi integrada e nenhum modelo foi baixado/executado localmente nesta fase — esta máquina de desenvolvimento não tem GPU confirmada. Quando a infraestrutura de GPU adequada existir, a prioridade é integrar primeiro modelos open source/open weight cuja licença permita o uso comercial pretendido, verificando o checklist acima modelo a modelo antes de qualquer integração real.
 
 ## Candidatos — Ferramentas determinísticas (não-IA generativa, risco de licença baixo mas ainda a confirmar)
 
