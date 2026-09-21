@@ -34,17 +34,20 @@
 
 ## Candidatos — Ferramentas determinísticas (não-IA generativa, risco de licença baixo mas ainda a confirmar)
 
-| Ferramenta | Licença | Uso comercial | Observações |
-|---|---|---|---|
-| **OpenSCAD** | GPL-2.0 (o programa) | Sim, como ferramenta externa via subprocess (não linkamos a lib no nosso binário) | Como é invocado via CLI (processo separado), não gera obrigação de copyleft sobre o código da plataforma — confirmar com jurídico se houver dúvida sobre o modelo de invocação |
-| **build123d / CadQuery** (baseado em OCCT) | Apache-2.0 / LGPL (OCCT) | Sim | OCCT é LGPL — verificar forma de linkagem/distribuição se algum dia for embutido em binário distribuído ao cliente (não é o caso aqui, roda server-side) |
-| **Blender** (headless) | GPL-2.0/3.0 | Sim, como ferramenta externa via subprocess | Mesma lógica do OpenSCAD — uso como processo externo, scripts próprios `.py` não precisam ser GPL |
-| **trimesh** | MIT | Sim | Sem restrição relevante |
-| **Open3D** | MIT | Sim | Sem restrição relevante |
-| **PyMeshLab** | GPL-3.0 | Sim como ferramenta externa; **atenção especial** se for importado como lib Python dentro do mesmo processo do backend (pode implicar copyleft sobre o processo que a importa) | Recomenda-se isolar em worker próprio/processo separado, nunca importar dentro do processo principal da API |
-| **PrusaSlicer** (CLI) | AGPL-3.0 | Sim, como binário externo via subprocess/CLI | AGPL tem cláusula de "uso via rede" — como é executado como ferramenta local pelo worker (não é modificado e redistribuído como serviço de terceiro), risco é baixo, mas **jurídico deve confirmar** antes de produção, especialmente se a plataforma for oferecida como SaaS público |
-| **OrcaSlicer** (CLI) | AGPL-3.0 | Mesma observação do PrusaSlicer | Idem |
-| **Cura Engine** | LGPL-3.0 (CuraEngine) / AGPL (Cura app completo) | Sim, via CLI do `CuraEngine` isoladamente | Preferir o `CuraEngine` (motor) e não a aplicação completa do Cura |
+| Ferramenta | Licença | Uso comercial | Status | Observações |
+|---|---|---|---|---|
+| **build123d** (baseado em OCCT) | Apache-2.0 / LGPL (OCCT/OCP) | Sim | **Integrado (Fase 7)** — `infrastructure/ai_providers/real/build123d_cad.py` | Roda server-side, em processo Python puro (sem subprocess) — verificar forma de linkagem/distribuição se algum dia for embutido em binário distribuído ao cliente (não é o caso aqui) |
+| **CadQuery** (alternativa, também OCCT) | Apache-2.0 / LGPL (OCCT) | Sim | Não usado (build123d escolhido) | Mesma base OCCT do build123d; considerar se build123d apresentar limitação futura |
+| **OpenSCAD** | GPL-2.0 (o programa) | Sim, como ferramenta externa via subprocess (não linkamos a lib no nosso binário) | Não usado (build123d escolhido na Fase 7) | Como é invocado via CLI (processo separado), não gera obrigação de copyleft sobre o código da plataforma — confirmar com jurídico se houver dúvida sobre o modelo de invocação |
+| **Blender** (headless) | GPL-2.0/3.0 | Sim, como ferramenta externa via subprocess | Não usado ainda | Mesma lógica do OpenSCAD — uso como processo externo, scripts próprios `.py` não precisam ser GPL |
+| **trimesh** | MIT | Sim | Não usado ainda | Sem restrição relevante |
+| **Open3D** | MIT | Sim | Não usado ainda | Sem restrição relevante |
+| **PyMeshLab** | GPL-3.0 | Sim como ferramenta externa; **atenção especial** se for importado como lib Python dentro do mesmo processo do backend (pode implicar copyleft sobre o processo que a importa) | Não usado ainda | Recomenda-se isolar em worker próprio/processo separado, nunca importar dentro do processo principal da API |
+| **PrusaSlicer** (CLI) | AGPL-3.0 | Sim, como binário externo via subprocess/CLI | Não usado ainda | AGPL tem cláusula de "uso via rede" — como é executado como ferramenta local pelo worker (não é modificado e redistribuído como serviço de terceiro), risco é baixo, mas **jurídico deve confirmar** antes de produção, especialmente se a plataforma for oferecida como SaaS público |
+| **OrcaSlicer** (CLI) | AGPL-3.0 | Mesma observação do PrusaSlicer | Não usado ainda | Idem |
+| **Cura Engine** | LGPL-3.0 (CuraEngine) / AGPL (Cura app completo) | Sim, via CLI do `CuraEngine` isoladamente | Não usado ainda | Preferir o `CuraEngine` (motor) e não a aplicação completa do Cura |
+
+**Fase 7:** build123d foi instalado (`pip install build123d`) e testado nesta máquina — funciona sem GPU, sem binário externo, sem subprocess (roda dentro do processo Python do worker). Boolean ops (furos), fillets/cantos arredondados e extrusão de texto (embossing) confirmados funcionando. Substituiu o `MockBoxCADProvider` como o provider ativo de `PARAMETRIC_CAD`.
 
 ## Candidatos — LLM para NLU / extração de especificação
 

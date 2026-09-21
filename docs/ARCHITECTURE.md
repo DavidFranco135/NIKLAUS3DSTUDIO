@@ -206,6 +206,10 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   │   ├── classifier.py  # classify_task: dimensões exatas -> CAD, senão generativo
 │       │   │   │   └── result_validation.py  # validate_generation_result (Fase 6 — sanidade
 │       │   │   │                              # estrutural básica, não é o Printability Engine)
+│       │   │   ├── cad/
+│       │   │   │   └── templates/   # keychain.py, plate.py, box.py, generic.py (Fase 7) —
+│       │   │   │                    # geometria real via build123d, puramente computacional
+│       │   │   │                    # (sem I/O), validation.py com os limites de dimensão
 │       │   │   ├── mesh/
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
@@ -226,11 +230,14 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   └── machines/
 │       │   ├── infrastructure/      # implementações concretas (adapters)
 │       │   │   ├── ai_providers/
-│       │   │   │   ├── mocks/       # MockLLMProvider, MockBoxCADProvider, MockImageTo3DProvider,
-│       │   │   │   │                # MockMeshRepairProvider, MockTextureProvider, providers
-│       │   │   │   │                # generativos placeholder (Fase 4-5) — todos sem GPU/API paga,
-│       │   │   │   │                # geometria/textura gerada em Python puro (stl_box.py,
-│       │   │   │   │                # solid_color_png.py), nenhuma dependência de trimesh/Pillow
+│       │   │   │   ├── mocks/       # MockLLMProvider, MockImageTo3DProvider, MockMeshRepairProvider,
+│       │   │   │   │                # MockTextureProvider, providers generativos placeholder
+│       │   │   │   │                # (Fase 4-6) — sem GPU/API paga, geometria/textura em Python
+│       │   │   │   │                # puro (stl_box.py, solid_color_png.py). MockBoxCADProvider
+│       │   │   │   │                # também mora aqui mas não está mais no registry (Fase 7
+│       │   │   │   │                # substituiu por um provider real) — usado só em testes.
+│       │   │   │   ├── real/        # Build123DCADProvider (Fase 7) — único provider "real" (não
+│       │   │   │   │                # mock, não stub) registrado até agora; usa domain/cad/templates/
 │       │   │   │   ├── stubs/       # Hunyuan3DProvider, TrellisProvider, StableFast3DProvider,
 │       │   │   │   │                # SPAR3DProvider (Fase 5) — implementam a interface real mas
 │       │   │   │   │                # levantam ProviderNotConfiguredError (sem GPU/licença
@@ -238,7 +245,6 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   │   │                # muda o orchestrator nem o registry, só o corpo do método
 │       │   │   │   ├── registry.py  # TaskType -> [providers], ordem = prioridade de fallback;
 │       │   │   │   │                # também get_mesh_repair_provider()/get_texture_provider()
-│       │   │   │   ├── openscad_cad/
 │       │   │   │   └── llm/         # provider do LLM de NLU real (substitui o mock)
 │       │   │   ├── slicers/
 │       │   │   │   ├── prusaslicer/
@@ -454,6 +460,8 @@ class SlicerProvider(Protocol):
 
 **Status na Fase 6:** `ImageTo3DProvider` ganhou um fluxo real de ponta a ponta — upload de imagem (reaproveita o fluxo de arquivos da Fase 3) → `POST .../ai/jobs` com `image_file_id` → orchestrator lê os bytes via `StorageProvider.get_object()` (novo método) → `MockImageTo3DProvider` (explicitamente rotulado `development_only` na resposta da API e na UI) → validação estrutural básica (`VALIDATING`, `validate_generation_result`) → nova versão do projeto. Nada disso é geração 3D real a partir da imagem — ver [docs/AI.md](AI.md) para o guia de como plugar um adapter real depois, e os critérios de comparação a preencher antes de escolher o primeiro modelo.
 
+**Status na Fase 7:** `CADProvider` deixou de ser mock — `Build123DCADProvider` (`infrastructure/ai_providers/real/build123d_cad.py`) é o primeiro provider **real** (não mock, não stub) da plataforma. Usa build123d (OCCT/BREP), instalado via pip, testado nesta máquina sem GPU/subprocess. Templates reais em `domain/cad/templates/`: chaveiro (furo + texto embossado), placa, caixa oca, genérico — dispatch por `spec.object_type`. Diferente dos demais `TaskType`, `PARAMETRIC_CAD` não tem fallback para mock: uma geometria genérica sem o furo/texto pedido seria uma resposta *errada*, não uma alternativa aceitável, então uma falha do motor real vira `FAILED` claro em vez de um resultado silenciosamente incorreto.
+
 Registro de providers é feito em Python (`registry.py`), não pelo YAML abaixo — o exemplo permanece como direção futura (útil quando o número de providers/prioridades justificar configuração externa em vez de uma lista no código):
 
 ```yaml
@@ -504,6 +512,8 @@ StructuredSpecification (dimensões exatas) → Template Selector (keychain | bo
 ```
 
 Cada "template" paramétrico é um módulo próprio e testável (`domain/cad/templates/keychain.py`, `plate.py`, `gear.py`, ...), recebendo parâmetros tipados e produzindo o script CAD determinístico — o mesmo input sempre gera o mesmo output (reprodutibilidade).
+
+**Implementado na Fase 7:** motor escolhido foi **build123d** (não OpenSCAD) — biblioteca Python pura sobre OCCT/OCP, sem subprocess, sem binário externo, instalada via pip e testada nesta máquina sem GPU. Templates reais em `domain/cad/templates/`: `keychain.py` (plate arredondada + furo via boolean subtraction + texto embossado, cobre exatamente o exemplo de chaveiro da seção 7), `plate.py` (placa com texto opcional), `box.py` (container oco via `offset`/shell), `generic.py` (caixa sólida, fallback para tipos de objeto não reconhecidos). `infrastructure/ai_providers/real/build123d_cad.py` (`Build123DCADProvider`) despacha por `spec.object_type`, valida a geometria resultante (`part.is_valid`) antes de aceitar como sucesso, e exporta STL de verdade (binário, via arquivo temporário). Substituiu `MockBoxCADProvider` como único provider ativo de `PARAMETRIC_CAD` — sem fallback para o mock em caso de falha, porque uma caixa genérica seria uma geometria **errada** (sem furo/texto), não uma alternativa aceitável, para uma tarefa cujo requisito é precisão dimensional. `gear`/`spacer`/STEP export ainda não implementados.
 
 ### 10.4 Letreiros e texto 3D
 

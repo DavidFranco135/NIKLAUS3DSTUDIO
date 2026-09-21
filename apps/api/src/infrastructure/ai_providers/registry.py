@@ -7,7 +7,6 @@ from src.domain.ai.ports import (
     TextureProvider,
 )
 from src.domain.ai.spec import TaskType
-from src.infrastructure.ai_providers.mocks.mock_cad import MockBoxCADProvider
 from src.infrastructure.ai_providers.mocks.mock_generative import (
     AlwaysFailingMockProvider,
     PlaceholderMockProvider,
@@ -16,6 +15,7 @@ from src.infrastructure.ai_providers.mocks.mock_image_to_3d import MockImageTo3D
 from src.infrastructure.ai_providers.mocks.mock_llm import MockLLMProvider
 from src.infrastructure.ai_providers.mocks.mock_mesh_repair import MockMeshRepairProvider
 from src.infrastructure.ai_providers.mocks.mock_texture import MockTextureProvider
+from src.infrastructure.ai_providers.real.build123d_cad import Build123DCADProvider
 from src.infrastructure.ai_providers.stubs.hunyuan3d import Hunyuan3DProvider
 from src.infrastructure.ai_providers.stubs.spar3d import SPAR3DProvider
 from src.infrastructure.ai_providers.stubs.stable_fast_3d import StableFast3DProvider
@@ -26,7 +26,13 @@ from src.infrastructure.ai_providers.stubs.trellis import TrellisProvider
 # about them), but never actually needed while a mock ahead of them keeps
 # succeeding. Swapping a stub for a working adapter is the only change needed
 # once GPU infra + a license check land (Fase 6+) — nothing here has to move.
-_CAD_PROVIDERS: list[CADProvider] = [MockBoxCADProvider()]
+#
+# CAD is the one exception: build123d (Fase 7) is a real engine, not a mock, so
+# it's the only registered provider — falling back to a placeholder box would
+# silently return the wrong geometry (missing hole/text) instead of failing
+# loudly, which is worse for a task type whose entire point is dimensional
+# precision. MockBoxCADProvider still exists for direct use in tests.
+_CAD_PROVIDERS: list[CADProvider] = [Build123DCADProvider()]
 
 _TEXT_TO_3D_PROVIDERS: list[TextTo3DProvider] = [
     AlwaysFailingMockProvider(),

@@ -4,7 +4,7 @@ from src.infrastructure.ai_providers import registry
 
 def test_cad_providers_registered():
     providers = registry.get_providers_for_task(TaskType.PARAMETRIC_CAD)
-    assert [p.name for p in providers] == ["mock_box_cad"]
+    assert [p.name for p in providers] == ["build123d_cad"]
 
 
 def test_text_to_3d_providers_include_mocks_before_real_vendor_stub():

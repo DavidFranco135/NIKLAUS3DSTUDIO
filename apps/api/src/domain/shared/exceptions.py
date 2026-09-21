@@ -90,3 +90,7 @@ class InvalidImageInputError(DomainError):
 
 class GenerationValidationFailedError(DomainError):
     pass
+
+
+class InvalidCADParametersError(DomainError):
+    pass

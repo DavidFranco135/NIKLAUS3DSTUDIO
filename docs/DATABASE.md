@@ -187,7 +187,7 @@ Fluxo de upload: `POST .../files/upload-url` cria a linha (`status='pending'`) e
 |---|---|---|
 | id | UUID PK | |
 | ai_job_id | UUID FK NOT NULL | |
-| provider_name | TEXT NOT NULL | ex. `mock_box_cad`, `mock_generative_unavailable`, `mock_generative_placeholder` — nomes reais (`hunyuan3d`, `trellis`, `openscad_cad`, ...) chegam nas Fases 5-7 |
+| provider_name | TEXT NOT NULL | ex. `build123d_cad` (real, Fase 7), `mock_generative_unavailable`, `mock_generative_placeholder`, `mock_image_to_3d` — providers de imagem/texto real (`hunyuan3d`, `trellis`, ...) ainda pendentes de GPU/licença |
 | attempt_number | INTEGER NOT NULL | |
 | status | TEXT NOT NULL | SUCCEEDED / FAILED |
 | error_detail | TEXT NULL | |

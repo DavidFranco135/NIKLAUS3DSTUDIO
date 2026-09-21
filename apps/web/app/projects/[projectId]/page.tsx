@@ -241,9 +241,9 @@ export default function ProjectDetailPage() {
         <form onSubmit={handleGenerateWithAI} className="space-y-3 rounded border border-neutral-800 p-4">
           <h2 className="text-lg font-medium">Gerar com IA</h2>
           <p className="text-xs text-neutral-500">
-            Providers ainda são mocks de desenvolvimento (caixa placeholder, texto ou imagem) —
-            nenhum modelo de IA real integrado ainda. Prova o pipeline completo
-            (upload/orquestração/fallback/versionamento), não a qualidade da peça.
+            Com dimensões exatas (ex: &quot;70x35x4mm&quot;), a geometria é gerada de verdade (CAD
+            paramétrico real). Sem dimensões exatas ou a partir de uma imagem, o resultado ainda
+            é um mock de desenvolvimento (nenhum modelo generativo de IA integrado ainda).
           </p>
           <textarea
             placeholder='Texto (opcional se enviar imagem). Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'

@@ -1,19 +1,17 @@
 # 3D AI Studio — AI Orchestrator e Providers
 
-Este documento explica como o pipeline de IA está montado hoje (Fases 4-6) e, principalmente, **como conectar um provider generativo real** quando a infraestrutura de GPU e a licença de um modelo estiverem prontas — sem precisar redesenhar nada.
+Este documento explica como o pipeline de IA está montado hoje (Fases 4-7) e, principalmente, **como conectar um provider generativo real** quando a infraestrutura de GPU e a licença de um modelo estiverem prontas — sem precisar redesenhar nada.
 
 ## Status atual (honesto)
 
-Nenhum modelo de IA generativo real está integrado. Tudo que existe hoje é:
-
 - **NLU**: `MockLLMProvider` — extrai `StructuredSpecification` do prompt por regex determinística, não por um LLM de verdade.
-- **CAD paramétrico**: `MockBoxCADProvider` — gera uma caixa STL real a partir das dimensões (sem OpenSCAD ainda).
-- **Text-to-3D generativo**: dois mocks (`AlwaysFailingMockProvider` + `PlaceholderMockProvider`) que só existem para provar o fallback.
+- **CAD paramétrico**: **real** desde a Fase 7 — `Build123DCADProvider` gera geometria de verdade (BREP/OCCT: furos por boolean subtraction, texto embossado, cantos arredondados, containers ocos) via build123d, sem GPU. `MockBoxCADProvider` (Fase 4) ainda existe em `mocks/` mas não está mais registrado — só usado diretamente em testes.
+- **Text-to-3D generativo**: dois mocks (`AlwaysFailingMockProvider` + `PlaceholderMockProvider`) que só existem para provar o fallback. Nenhum modelo generativo real integrado.
 - **Image-to-3D**: `MockImageTo3DProvider` — **ignora completamente a imagem enviada** e devolve o mesmo cubo placeholder. Deixa isso explícito em `result_metadata.development_only = true` e numa nota de texto, tanto na resposta da API quanto na UI (faixa amarela na página do projeto). **Nunca deve ser apresentado a um usuário como uma reconstrução 3D real.**
 - **Mesh repair / textura**: mocks no-op/placeholder, sem nenhuma biblioteca de processamento de malha ainda.
-- **4 candidatos reais** (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface de verdade mas levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem rodar modelo local sem GPU confirmada.
+- **4 candidatos reais de IA generativa** (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface de verdade mas levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem rodar modelo local sem GPU confirmada. **Isso é diferente do CAD paramétrico**: CAD não precisa de um modelo de IA generativa nem de GPU — é geometria determinística — por isso pôde virar real nesta fase enquanto text/image-to-3D continuam mock.
 
-Essa separação (mock de desenvolvimento vs. stub de vendor real) é intencional: o mock prova que o *pipeline* funciona; o stub é o *lugar exato* onde a implementação de verdade entra depois.
+Essa separação (mock de desenvolvimento vs. stub de vendor real vs. provider real) é intencional: o mock prova que o *pipeline* funciona; o stub é o *lugar exato* onde a implementação de verdade entra depois; o provider real (CAD) mostra que essa mesma arquitetura, quando o motor não depende de GPU/licença incerta, vira produção sem nenhuma mudança estrutural.
 
 ## Como o AI Orchestrator despacha um job
 

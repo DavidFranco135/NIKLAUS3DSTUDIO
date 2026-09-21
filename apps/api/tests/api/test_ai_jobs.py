@@ -37,7 +37,7 @@ def test_exact_dimensions_are_routed_to_cad_provider_and_complete(client: TestCl
     assert job["status"] == "COMPLETED"
     assert job["result_project_version_id"] is not None
     assert len(job["attempts"]) == 1
-    assert job["attempts"][0]["provider_name"] == "mock_box_cad"
+    assert job["attempts"][0]["provider_name"] == "build123d_cad"
     assert job["attempts"][0]["status"] == "SUCCEEDED"
 
     project = client.get(
