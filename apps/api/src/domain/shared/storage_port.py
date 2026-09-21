@@ -14,3 +14,11 @@ class StorageProvider(Protocol):
     def download_url(self, *, key: str, expires_in: int) -> str: ...
 
     def stat(self, *, key: str) -> ObjectStat | None: ...
+
+    def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
+        """Server-side write, used by workers that hold bytes in memory (e.g. AI
+
+        generation output) — as opposed to `upload_url`, which hands the client
+        a presigned URL to PUT bytes directly for a human-driven upload.
+        """
+        ...

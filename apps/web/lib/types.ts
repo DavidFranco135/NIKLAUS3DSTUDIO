@@ -60,3 +60,22 @@ export type RequestUploadResponse = {
   upload_url: string;
   storage_key: string;
 };
+
+export type AIJobAttempt = {
+  provider_name: string;
+  attempt_number: number;
+  status: string;
+  error_detail: string | null;
+  duration_ms: number | null;
+};
+
+export type AIJob = {
+  id: string;
+  project_id: string | null;
+  task_type: string;
+  status: string;
+  error_message: string | null;
+  result_file_id: string | null;
+  result_project_version_id: string | null;
+  attempts: AIJobAttempt[];
+};

@@ -54,6 +54,14 @@ class S3StorageProvider:
             content_type=response.get("ContentType"),
         )
 
+    def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
+        try:
+            self._client.put_object(
+                Bucket=self._bucket, Key=key, Body=data, ContentType=content_type
+            )
+        except BotoCoreError as exc:
+            raise StorageUnavailableError(str(exc)) from exc
+
 
 _provider: S3StorageProvider | None = None
 

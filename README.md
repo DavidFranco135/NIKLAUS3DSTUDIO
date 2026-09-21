@@ -2,9 +2,9 @@
 
 Plataforma SaaS multi-tenant de Inteligência Artificial para produção de impressão 3D — um "copiloto de produção 3D" que permite criar, converter, reparar, precificar e produzir peças 3D via chat, texto ou imagem, e administrar todo o negócio de impressão 3D (clientes, pedidos, estoque, impressoras, financeiro).
 
-> **Status atual: FASE 3 — Projetos e arquivos.** CRUD de projetos e versões, upload/download via URL pré-assinada (S3/MinIO), viewer 3D básico (GLB) no frontend. Frontend agora tem cadastro/login/dashboard/detalhe de projeto reais, consumindo a API (não é mais só uma página de health-check). `sha256_hash`/deduplicação e o restante do pipeline de IA (Fase 4+) ainda não existem.
+> **Status atual: FASE 4 — AI Orchestrator (providers mock).** Pipeline completo funcionando: prompt em texto → extração de especificação (NLU mock por regex) → classificador (dimensões exatas → CAD paramétrico, senão generativo) → seleção de engine com fallback registrado → fila real (Celery + Redis) → geração (mock: caixa STL real a partir das dimensões) → nova versão do projeto. Nenhum modelo de IA real integrado ainda — isso é Fase 5 (Text-to-3D) em diante. Widget "Gerar com IA" já disponível na página de projeto.
 >
-> **Limitação conhecida deste ambiente:** esta máquina não tem Docker instalado, então o fluxo de upload real (PUT no MinIO + confirmação via HEAD) não pôde ser testado de ponta a ponta aqui — só a geração da URL pré-assinada, que não depende de rede. Os testes automatizados usam um storage fake em memória. Para testar upload de verdade, use `docker compose up` (Docker Desktop/WSL) ou aponte as variáveis `S3_*` para um bucket real.
+> **Limitação conhecida deste ambiente:** esta máquina não tem Docker instalado, então não há Redis/MinIO rodando de verdade aqui. Os jobs de IA rodam em modo síncrono (`CELERY_TASK_ALWAYS_EAGER=true`) para dev/testes sem broker — o mesmo código do worker, só sem fila de verdade por trás. O caminho de sucesso completo (job → arquivo salvo → nova versão) está coberto pelos testes automatizados (storage fake); testado manualmente aqui foi o caminho de erro (storage indisponível), que revelou e permitiu corrigir dois bugs reais (ver [ARCHITECTURE.md §15](docs/ARCHITECTURE.md#15-filas-e-workers)). Para rodar com Redis/MinIO de verdade, use `docker compose up` (Docker Desktop/WSL).
 
 ## Como rodar localmente
 

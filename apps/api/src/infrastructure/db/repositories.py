@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.infrastructure.db.models import (
+    AIJob,
+    AIJobAttempt,
     FileAsset,
     Organization,
     OrgMember,
@@ -276,3 +278,142 @@ class FileAssetRepository:
     def attach_to_version(self, file_asset: FileAsset, *, project_version_id: UUID) -> None:
         file_asset.project_version_id = project_version_id
         self.session.flush()
+
+    def create_uploaded(
+        self,
+        *,
+        organization_id: UUID,
+        project_id: UUID | None,
+        kind: str,
+        storage_key: str,
+        mime_type: str,
+        size_bytes: int,
+        sha256_hash: str,
+        uploaded_by: UUID | None,
+    ) -> FileAsset:
+        """For server-side writes (e.g. AI worker output) that skip the
+
+        pending -> confirm dance a browser upload needs: the caller already
+        holds the bytes, so there is nothing left to confirm.
+        """
+        file_asset = FileAsset(
+            organization_id=organization_id,
+            project_id=project_id,
+            kind=kind,
+            storage_key=storage_key,
+            mime_type=mime_type,
+            size_bytes=size_bytes,
+            sha256_hash=sha256_hash,
+            status="uploaded",
+            uploaded_by=uploaded_by,
+        )
+        self.session.add(file_asset)
+        self.session.flush()
+        return file_asset
+
+
+class AIJobRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, job_id: UUID) -> AIJob | None:
+        return self.session.scalar(
+            select(AIJob).where(AIJob.id == job_id, AIJob.organization_id == organization_id)
+        )
+
+    def get_active_by_idempotency_key(
+        self, organization_id: UUID, idempotency_key: str
+    ) -> AIJob | None:
+        return self.session.scalar(
+            select(AIJob).where(
+                AIJob.organization_id == organization_id,
+                AIJob.idempotency_key == idempotency_key,
+                AIJob.status.in_(["QUEUED", "PROCESSING", "VALIDATING", "COMPLETED"]),
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID, *, project_id: UUID | None = None) -> list[AIJob]:
+        stmt = select(AIJob).where(AIJob.organization_id == organization_id)
+        if project_id is not None:
+            stmt = stmt.where(AIJob.project_id == project_id)
+        return list(self.session.scalars(stmt.order_by(AIJob.created_at.desc())))
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        project_id: UUID | None,
+        requested_by: UUID | None,
+        task_type: str,
+        input_spec: dict,
+        queue_name: str,
+        idempotency_key: str,
+    ) -> AIJob:
+        job = AIJob(
+            organization_id=organization_id,
+            project_id=project_id,
+            requested_by=requested_by,
+            task_type=task_type,
+            input_spec=input_spec,
+            queue_name=queue_name,
+            idempotency_key=idempotency_key,
+        )
+        self.session.add(job)
+        self.session.flush()
+        return job
+
+    def mark_processing(self, job: AIJob) -> None:
+        job.status = "PROCESSING"
+        job.started_at = datetime.now(UTC)
+        self.session.flush()
+
+    def mark_completed(
+        self, job: AIJob, *, result_file_id: UUID, result_project_version_id: UUID | None
+    ) -> None:
+        job.status = "COMPLETED"
+        job.result_file_id = result_file_id
+        job.result_project_version_id = result_project_version_id
+        job.finished_at = datetime.now(UTC)
+        self.session.flush()
+
+    def mark_failed(self, job: AIJob, *, error_message: str) -> None:
+        job.status = "FAILED"
+        job.error_message = error_message
+        job.finished_at = datetime.now(UTC)
+        self.session.flush()
+
+
+class AIJobAttemptRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def list_for_job(self, ai_job_id: UUID) -> list[AIJobAttempt]:
+        return list(
+            self.session.scalars(
+                select(AIJobAttempt)
+                .where(AIJobAttempt.ai_job_id == ai_job_id)
+                .order_by(AIJobAttempt.attempt_number)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        ai_job_id: UUID,
+        provider_name: str,
+        attempt_number: int,
+        status: str,
+        error_detail: str | None,
+        duration_ms: int,
+    ) -> AIJobAttempt:
+        attempt = AIJobAttempt(
+            ai_job_id=ai_job_id,
+            provider_name=provider_name,
+            attempt_number=attempt_number,
+            status=status,
+            error_detail=error_detail,
+            duration_ms=duration_ms,
+        )
+        self.session.add(attempt)
+        self.session.flush()
+        return attempt

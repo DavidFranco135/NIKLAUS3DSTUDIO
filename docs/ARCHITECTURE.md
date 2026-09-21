@@ -201,9 +201,9 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   ├── domain/              # regras de negócio puras, sem I/O
 │       │   │   ├── auth/            # Role, RBAC, DTOs de autenticação (Fase 2)
 │       │   │   ├── ai/
-│       │   │   │   ├── ports.py     # interfaces: AIProvider, ImageTo3DProvider, ...
-│       │   │   │   ├── orchestrator.py
-│       │   │   │   └── spec.py      # StructuredSpecification (DTOs)
+│       │   │   │   ├── ports.py     # AIProvider, CADProvider, TextTo3DProvider, LLMProvider (Fase 4)
+│       │   │   │   ├── spec.py      # StructuredSpecification, TaskType (Fase 4)
+│       │   │   │   └── classifier.py  # classify_task: dimensões exatas -> CAD, senão generativo
 │       │   │   ├── mesh/
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
@@ -215,7 +215,8 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   ├── organizations/   # create_organization, add/remove/list_members (Fase 2)
 │       │   │   ├── projects/        # CRUD, versões, activate_version (Fase 3)
 │       │   │   ├── files/           # request_upload, confirm_upload, get_download_url (Fase 3)
-│       │   │   ├── ai_jobs/
+│       │   │   ├── ai/              # orchestrator.py (execute_job: dispatch+fallback+persist
+│       │   │   │                    # resultado), use_cases.py (create_ai_job idempotente) (Fase 4)
 │       │   │   ├── orders/
 │       │   │   ├── inventory/
 │       │   │   ├── customers/
@@ -223,12 +224,17 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   └── machines/
 │       │   ├── infrastructure/      # implementações concretas (adapters)
 │       │   │   ├── ai_providers/
+│       │   │   │   ├── mocks/       # MockLLMProvider, MockBoxCADProvider, providers generativos
+│       │   │   │   │                # placeholder (Fase 4) — substituídos por adapters reais
+│       │   │   │   │                # abaixo à medida que cada Fase 5-7 os integra, sem tocar
+│       │   │   │   │                # no orchestrator (é exatamente o ponto da abstração)
+│       │   │   │   ├── registry.py  # TaskType -> [providers], ordem = prioridade de fallback
 │       │   │   │   ├── hunyuan3d/
 │       │   │   │   ├── trellis/
 │       │   │   │   ├── stable_fast_3d/
 │       │   │   │   ├── spar3d/
 │       │   │   │   ├── openscad_cad/
-│       │   │   │   └── llm/         # provider do LLM de NLU
+│       │   │   │   └── llm/         # provider do LLM de NLU real (substitui o mock)
 │       │   │   ├── slicers/
 │       │   │   │   ├── prusaslicer/
 │       │   │   │   └── orcaslicer/
@@ -236,7 +242,7 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   │                    # nos testes, StorageProvider é substituído por um fake
 │       │   │   │                    # em memória (tests/fakes/), nunca por um MinIO real
 │       │   │   ├── db/              # SQLAlchemy models, repositórios, session
-│       │   │   └── queue/           # Celery app, tasks
+│       │   │   └── queue/           # celery_app.py, tasks.py (process_ai_job) (Fase 4)
 │       │   ├── interfaces/
 │       │   │   └── http/            # routers FastAPI, schemas Pydantic (DTO de API)
 │       │   │       ├── dependencies.py  # get_current_user, require_org_role, get_storage
@@ -335,6 +341,8 @@ Regras obrigatórias:
 - Permissões são verificadas por decorator/dependency do FastAPI (`require_permission("orders:create")`) mapeado a partir do papel, com tabela `permissions` explícita no banco para permitir customização futura por organização (plano Enterprise).
 
 ## 8. AI Orchestrator
+
+**Implementado na Fase 4** (`application/ai/orchestrator.py`, `application/ai/use_cases.py`), com todos os providers em `infrastructure/ai_providers/mocks/` — nenhum modelo de IA real integrado ainda (isso é Fase 5+). O `LLMProvider` também é mock (`MockLLMProvider`): extração de especificação por regex determinística, não um LLM de verdade, por decisão explícita desta fase. O mecanismo de fila é real (Celery + Redis, seção 15), não simulado — só os *providers* são placeholders. O `CADProvider` mock (`MockBoxCADProvider`) gera uma caixa STL de verdade a partir das dimensões exatas (sem OpenSCAD ainda), e os dois providers generativos mock (`AlwaysFailingMockProvider` sempre falha, `PlaceholderMockProvider` sempre funciona) existem especificamente para exercitar o fallback fim-a-fim.
 
 Fluxo de responsabilidade (mapeia a lista original 1–9):
 
@@ -572,17 +580,20 @@ POST /api/v1/ai/generate-3d  → 202 Accepted {"job_id": "..."}
 GET  /api/v1/jobs/{job_id}   → {"status": "PROCESSING", ...}
 ```
 
-Estados: `QUEUED → PROCESSING → VALIDATING → COMPLETED | FAILED | CANCELLED`.
+Estados: `QUEUED → PROCESSING → VALIDATING → COMPLETED | FAILED | CANCELLED`. Na Fase 4, `VALIDATING` e `CANCELLED` existem como valores de coluna válidos mas nenhum código ainda transiciona um job para eles (validação de resultado real é Fase 9; cancelamento não tem endpoint ainda) — a transição implementada hoje é `QUEUED → PROCESSING → COMPLETED|FAILED`.
+
+**Implementado na Fase 4:** Celery + Redis de verdade (`infrastructure/queue/celery_app.py`), fila `ai` consumida pelo serviço `worker-ai` do `docker-compose.yml`. Para testes automatizados (e para rodar localmente sem Redis, como neste ambiente sem Docker), `CELERY_TASK_ALWAYS_EAGER=true` faz `.delay()` executar a task de forma síncrona e in-process — o mesmo código do worker, sem depender de um broker. Isso exigiu expirar explicitamente o cache de identidade do SQLAlchemy (`Session.expire_all()`) depois do `.delay()` em modo eager, já que a task roda numa sessão de banco diferente da requisição que a disparou; sem isso, a sessão da requisição continuava enxergando o job como `QUEUED` mesmo após a task já ter terminado (bug real, encontrado e corrigido durante os testes desta fase).
+
+**Segundo bug real encontrado em teste manual desta fase:** o provider gerava o resultado com sucesso, mas se o passo seguinte (gravar no storage, criar `FileAsset`/`ProjectVersion`) falhasse — por exemplo, MinIO fora do ar — a exceção não era capturada e derrubava a request inteira com 500, mesmo a geração em si tendo funcionado. `execute_job` agora envolve essa etapa de persistência em seu próprio try/except, marcando o job como `FAILED` com uma mensagem clara (`attempts` continuam mostrando o provider como `SUCCEEDED`, já que a falha foi em salvar o resultado, não em gerá-lo) em vez de propagar a exceção. Coberto por teste de regressão (`test_job_fails_gracefully_when_storage_is_unreachable`).
 
 Filas separadas por natureza de carga (permite escalar workers independentemente e priorizar):
 
-| Fila | Consumida por | Requer GPU |
-|---|---|---|
-| `ai.generate` (text/image-to-3d generativo) | AI Worker | Sim (preferencial) |
-| `cad.parametric` | Mesh Worker | Não |
-| `mesh.process` (reparo, otimização, análise) | Mesh Worker | Não |
-| `printability.analyze` | Mesh Worker | Não |
-| `slicing` | Slicing Worker | Não |
+| Fila | Consumida por | Requer GPU | Status |
+|---|---|---|---|
+| `ai` (`ai.cad` + `ai.generate`, roteadas pela mesma fila por ora) | `worker-ai` | Não com os mocks atuais | **Implementada (Fase 4, providers mock)** |
+| `mesh.process` (reparo, otimização, análise) | Mesh Worker | Não | Futuro (Fase 8) |
+| `printability.analyze` | Mesh Worker | Não | Futuro (Fase 9) |
+| `slicing` | Slicing Worker | Não | Futuro (Fase 10) |
 
 Retry: backoff exponencial, máximo configurável por tipo de job, jobs idempotentes (chave de idempotência = hash da spec + input), dead-letter queue para falhas persistentes com alerta.
 

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { inferFileKind } from "@/lib/file-kind";
-import type { FileAsset, Project, ProjectVersion, RequestUploadResponse } from "@/lib/types";
+import type { AIJob, FileAsset, Project, ProjectVersion, RequestUploadResponse } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
 import { ModelViewer } from "@/components/ModelViewer";
 
@@ -23,6 +23,9 @@ export default function ProjectDetailPage() {
   const [label, setLabel] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiJob, setAiJob] = useState<AIJob | null>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const orgPath = `/api/v1/organizations/${currentOrganizationId}/projects/${projectId}`;
 
@@ -120,6 +123,51 @@ export default function ProjectDetailPage() {
     }
   }
 
+  async function pollJobUntilDone(jobId: string): Promise<AIJob> {
+    const jobPath = `/api/v1/organizations/${currentOrganizationId}/ai/jobs/${jobId}`;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const current = await apiFetch<AIJob>(jobPath, { accessToken });
+      if (current.status === "COMPLETED" || current.status === "FAILED") return current;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    throw new Error("O job de IA demorou demais para concluir.");
+  }
+
+  async function handleGenerateWithAI(event: React.FormEvent) {
+    event.preventDefault();
+    if (!accessToken) return;
+    setIsGeneratingAI(true);
+    setError(null);
+    setMessage(null);
+    setAiJob(null);
+    try {
+      const created = await apiFetch<AIJob>(
+        `/api/v1/organizations/${currentOrganizationId}/ai/jobs`,
+        {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({ prompt: aiPrompt, project_id: projectId }),
+        }
+      );
+      const finished =
+        created.status === "COMPLETED" || created.status === "FAILED"
+          ? created
+          : await pollJobUntilDone(created.id);
+      setAiJob(finished);
+      if (finished.status === "COMPLETED") {
+        setAiPrompt("");
+        setMessage("Modelo gerado pela IA — nova versão criada.");
+        await loadAll();
+      } else {
+        setError(finished.error_message ?? "A geração por IA falhou.");
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao criar o job de IA.");
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  }
+
   async function handleActivate(versionId: string) {
     if (!accessToken) return;
     setError(null);
@@ -178,6 +226,45 @@ export default function ProjectDetailPage() {
             Sem preview 3D disponível para este formato ainda — baixe o arquivo para visualizar.
           </p>
         )}
+
+        <form onSubmit={handleGenerateWithAI} className="space-y-3 rounded border border-neutral-800 p-4">
+          <h2 className="text-lg font-medium">Gerar com IA</h2>
+          <p className="text-xs text-neutral-500">
+            Fase 4: providers ainda são mocks (caixa placeholder) — nenhum modelo de IA real
+            integrado ainda. Prova o pipeline de orquestração/fallback, não a qualidade da peça.
+          </p>
+          <textarea
+            required
+            placeholder='Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            rows={2}
+            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2"
+          />
+          <button
+            type="submit"
+            disabled={isGeneratingAI || !aiPrompt.trim()}
+            className="rounded bg-purple-600 px-4 py-2 font-medium disabled:opacity-50"
+          >
+            {isGeneratingAI ? "Gerando…" : "Gerar com IA"}
+          </button>
+          {aiJob && (
+            <div className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
+              <p>
+                Tarefa classificada como <strong>{aiJob.task_type}</strong> — status:{" "}
+                <strong>{aiJob.status}</strong>
+              </p>
+              <ul className="mt-1 list-inside list-disc">
+                {aiJob.attempts.map((attempt) => (
+                  <li key={attempt.attempt_number}>
+                    {attempt.provider_name}: {attempt.status}
+                    {attempt.error_detail ? ` (${attempt.error_detail})` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </form>
 
         <form onSubmit={handleUpload} className="space-y-3 rounded border border-neutral-800 p-4">
           <h2 className="text-lg font-medium">Nova versão</h2>

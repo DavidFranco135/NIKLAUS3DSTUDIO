@@ -60,3 +60,15 @@ class UnsupportedFileKindError(DomainError):
 
 class StorageUnavailableError(DomainError):
     pass
+
+
+class ProviderUnavailableError(DomainError):
+    pass
+
+
+class AllProvidersFailedError(DomainError):
+    pass
+
+
+class AIJobNotFoundError(DomainError):
+    pass

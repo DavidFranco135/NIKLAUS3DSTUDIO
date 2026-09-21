@@ -22,6 +22,9 @@ class FakeStorageProvider:
     def stat(self, *, key: str) -> ObjectStat | None:
         return self._objects.get(key)
 
+    def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
+        self._objects[key] = ObjectStat(size_bytes=len(data), content_type=content_type)
+
 
 class UnavailableStorageProvider:
     """Simulates the object storage being unreachable (e.g. MinIO down)."""
@@ -33,4 +36,7 @@ class UnavailableStorageProvider:
         return f"https://fake-storage.test/{key}?download=1"
 
     def stat(self, *, key: str) -> ObjectStat | None:
+        raise StorageUnavailableError(f"Could not connect to storage for key {key}")
+
+    def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
         raise StorageUnavailableError(f"Could not connect to storage for key {key}")

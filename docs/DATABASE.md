@@ -157,37 +157,42 @@ Fluxo de upload: `POST .../files/upload-url` cria a linha (`status='pending'`) e
 
 ### ai_jobs
 
+*(Implementada na Fase 4, só com providers mock. `task_type` por ora só assume `PARAMETRIC_CAD` e `TEXT_TO_GENERATIVE_3D` — os demais valores chegam junto do módulo que os implementa de verdade: `IMAGE_TO_3D` na Fase 6, `SIGN_TEXT_3D`/`MESH_EDIT` depois disso. `result_file_id`/`result_project_version_id` foram adicionados aqui — não estavam no desenho original, que previa uma tabela `ai_generations` separada para isso; como a Fase 4 não tem ainda volume/bounding_box/processing_log reais para justificar essa tabela (isso é Mesh Processing, Fase 8), o resultado do job aponta direto para `files`/`project_versions`. `ai_generations` e `models_3d` entram quando essa riqueza de dados existir de verdade.)*
+
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | UUID PK | |
 | organization_id | UUID FK NOT NULL | |
 | project_id | UUID FK → projects NULL | |
-| requested_by | UUID FK → users | |
-| task_type | TEXT NOT NULL | `TEXT_TO_GENERATIVE_3D` / `IMAGE_TO_3D` / `PARAMETRIC_CAD` / `SIGN_TEXT_3D` / `MESH_REPAIR` / `MESH_EDIT` |
-| input_spec | JSONB NOT NULL | `StructuredSpecification` serializado |
-| status | TEXT NOT NULL DEFAULT 'QUEUED' | QUEUED / PROCESSING / VALIDATING / COMPLETED / FAILED / CANCELLED |
-| queue_name | TEXT NOT NULL | |
-| idempotency_key | TEXT NOT NULL | hash(spec+input) — índice único junto com organization_id |
+| requested_by | UUID FK → users NULL | |
+| task_type | TEXT NOT NULL | `PARAMETRIC_CAD` / `TEXT_TO_GENERATIVE_3D` (mais tipos em fases futuras) |
+| input_spec | JSON NOT NULL | `{"prompt": ..., "spec": StructuredSpecification}` |
+| status | TEXT NOT NULL DEFAULT 'QUEUED' | QUEUED / PROCESSING / VALIDATING / COMPLETED / FAILED / CANCELLED — `VALIDATING`/`CANCELLED` existem como valores possíveis mas nenhuma transição os produz ainda (validação real é Fase 9; cancelamento não tem endpoint ainda) |
+| queue_name | TEXT NOT NULL | `ai.cad` / `ai.generate` |
+| idempotency_key | TEXT NOT NULL | sha256(prompt normalizado + project_id) — índice único junto com organization_id |
 | error_message | TEXT NULL | |
+| result_file_id | UUID FK → files NULL | |
+| result_project_version_id | UUID FK → project_versions NULL | |
 | created_at, started_at, finished_at | TIMESTAMPTZ | |
 
 `UNIQUE (organization_id, idempotency_key)`.
 
 ### ai_job_attempts
 
+*(`compute_provider` do desenho original foi deixado de fora por ora — só faz sentido distinguir LOCAL_GPU/CLOUD_GPU/CPU quando houver um provider real que de fato precise de GPU, o que só chega na Fase 5/6.)*
+
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | UUID PK | |
 | ai_job_id | UUID FK NOT NULL | |
-| provider_name | TEXT NOT NULL | ex. `hunyuan3d`, `trellis`, `openscad_cad` |
+| provider_name | TEXT NOT NULL | ex. `mock_box_cad`, `mock_generative_unavailable`, `mock_generative_placeholder` — nomes reais (`hunyuan3d`, `trellis`, `openscad_cad`, ...) chegam nas Fases 5-7 |
 | attempt_number | INTEGER NOT NULL | |
-| status | TEXT NOT NULL | SUCCEEDED / FAILED / TIMEOUT |
+| status | TEXT NOT NULL | SUCCEEDED / FAILED |
 | error_detail | TEXT NULL | |
 | duration_ms | INTEGER NULL | |
-| compute_provider | TEXT NULL | LOCAL_GPU / CLOUD_GPU / CPU |
 | created_at | TIMESTAMPTZ | |
 
-Auditoria completa do fallback (seção 8 do ARCHITECTURE.md).
+Auditoria completa do fallback (seção 8 do ARCHITECTURE.md) — cada tentativa de cada provider é registrada, sucesso ou falha, nunca sobrescrita.
 
 ### ai_generations
 

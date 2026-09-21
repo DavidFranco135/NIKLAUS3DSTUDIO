@@ -130,3 +130,36 @@ class FileAssetResponse(BaseModel):
 
 class DownloadUrlResponse(BaseModel):
     download_url: str
+
+
+class CreateAIJobRequest(BaseModel):
+    prompt: str = Field(min_length=3, max_length=2000)
+    project_id: UUID | None = None
+
+
+class AIJobAttemptResponse(BaseModel):
+    provider_name: str
+    attempt_number: int
+    status: str
+    error_detail: str | None
+    duration_ms: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AIJobResponse(BaseModel):
+    id: UUID
+    project_id: UUID | None
+    task_type: str
+    status: str
+    input_spec: dict
+    error_message: str | None
+    result_file_id: UUID | None
+    result_project_version_id: UUID | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    attempts: list[AIJobAttemptResponse] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}

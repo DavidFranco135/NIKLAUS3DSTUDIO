@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 
 from src.domain.shared.exceptions import (
+    AIJobNotFoundError,
     CannotRemoveLastOwnerError,
     EmailAlreadyRegisteredError,
     FileAssetNotFoundError,
@@ -30,6 +31,7 @@ _STATUS_BY_ERROR = {
     FileNotUploadedError: status.HTTP_409_CONFLICT,
     UnsupportedFileKindError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
+    AIJobNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 

@@ -158,3 +158,57 @@ class FileAsset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     project_version: Mapped[ProjectVersion | None] = relationship(back_populates="files")
+
+
+class AIJob(Base):
+    __tablename__ = "ai_jobs"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "idempotency_key", name="uq_ai_jobs_org_idempotency"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("projects.id"), nullable=True, index=True
+    )
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id"), nullable=True
+    )
+    task_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    input_spec: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="QUEUED")
+    queue_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(String, nullable=True)
+    result_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("files.id"), nullable=True
+    )
+    result_project_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_versions.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    attempts: Mapped[list["AIJobAttempt"]] = relationship(
+        back_populates="ai_job", order_by="AIJobAttempt.attempt_number"
+    )
+
+
+class AIJobAttempt(Base):
+    __tablename__ = "ai_job_attempts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    ai_job_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("ai_jobs.id"), nullable=False, index=True
+    )
+    provider_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    error_detail: Mapped[str | None] = mapped_column(String, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    ai_job: Mapped[AIJob] = relationship(back_populates="attempts")
