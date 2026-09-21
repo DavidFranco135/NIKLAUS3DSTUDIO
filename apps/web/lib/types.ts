@@ -72,10 +72,12 @@ export type AIJobAttempt = {
 export type AIJob = {
   id: string;
   project_id: string | null;
+  source_image_file_id: string | null;
   task_type: string;
   status: string;
   error_message: string | null;
   result_file_id: string | null;
   result_project_version_id: string | null;
+  result_metadata: { development_only?: boolean; placeholder?: boolean; note?: string } | null;
   attempts: AIJobAttempt[];
 };

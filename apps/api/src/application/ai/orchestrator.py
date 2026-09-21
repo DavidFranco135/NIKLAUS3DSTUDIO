@@ -3,6 +3,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.domain.ai.ports import ImageInput
+from src.domain.ai.result_validation import validate_generation_result
 from src.domain.ai.spec import StructuredSpecification, TaskType
 from src.domain.shared.file_hash import sha256_hex
 from src.domain.shared.storage_port import StorageProvider
@@ -25,13 +27,28 @@ _EXTENSION_BY_KIND = {
 _VERSION_SOURCE_TYPE_BY_TASK = {
     TaskType.PARAMETRIC_CAD: "parametric_cad",
     TaskType.TEXT_TO_GENERATIVE_3D: "text_generative",
+    TaskType.IMAGE_TO_3D: "image_to_3d",
 }
 
 
-def _run_provider(task_type: TaskType, provider, spec: StructuredSpecification):
+def _run_provider(
+    task_type: TaskType, provider, spec: StructuredSpecification, image_input: ImageInput | None
+):
     if task_type == TaskType.PARAMETRIC_CAD:
         return provider.create_parametric_model(spec)
+    if task_type == TaskType.IMAGE_TO_3D:
+        return provider.generate_from_image(image_input, spec)
     return provider.generate_from_text(spec)
+
+
+def _load_image_input(
+    db: Session, storage: StorageProvider, *, organization_id: UUID, image_file_id: UUID
+) -> ImageInput:
+    file_asset = FileAssetRepository(db).get(organization_id, image_file_id)
+    if file_asset is None:
+        raise ValueError(f"Imagem de origem {image_file_id} não encontrada")
+    file_bytes = storage.get_object(key=file_asset.storage_key)
+    return ImageInput(file_bytes=file_bytes, mime_type=file_asset.mime_type)
 
 
 def execute_job(
@@ -39,10 +56,10 @@ def execute_job(
 ) -> None:
     """Runs the full AI job pipeline: dispatch to providers (with fallback),
 
-    persist the result as a FileAsset (+ new ProjectVersion when the job is
-    tied to a project), and update the job's status. Called from the Celery
-    task — kept as a plain function so it can also be called directly (and
-    synchronously) from tests without a broker.
+    validate the result, persist it as a FileAsset (+ new ProjectVersion when
+    the job is tied to a project), and update the job's status. Called from
+    the Celery task — kept as a plain function so it can also be called
+    directly (and synchronously) from tests without a broker.
     """
     job_repo = AIJobRepository(db)
     attempt_repo = AIJobAttemptRepository(db)
@@ -58,12 +75,23 @@ def execute_job(
     spec = StructuredSpecification.model_validate(job.input_spec["spec"])
     providers = get_providers_for_task(task_type)
 
+    image_input: ImageInput | None = None
+    if job.source_image_file_id is not None:
+        try:
+            image_input = _load_image_input(
+                db, storage, organization_id=organization_id, image_file_id=job.source_image_file_id
+            )
+        except Exception as exc:  # noqa: BLE001 — can't generate from an image we can't read
+            job_repo.mark_failed(job, error_message=f"Falha ao ler a imagem de origem: {exc}")
+            db.commit()
+            return
+
     result = None
     last_error: Exception | None = None
     for attempt_number, provider in enumerate(providers, start=1):
         started_at = time.monotonic()
         try:
-            result = _run_provider(task_type, provider, spec)
+            result = _run_provider(task_type, provider, spec, image_input)
         except Exception as exc:  # noqa: BLE001 — any provider failure triggers fallback
             duration_ms = int((time.monotonic() - started_at) * 1000)
             attempt_repo.create(
@@ -94,6 +122,15 @@ def execute_job(
         job_repo.mark_failed(
             job, error_message=str(last_error) if last_error else "Todos os providers falharam"
         )
+        db.commit()
+        return
+
+    job_repo.mark_validating(job)
+    db.commit()
+    issues = validate_generation_result(result)
+    if issues:
+        error_message = "Resultado reprovado na validação: " + "; ".join(issues)
+        job_repo.mark_failed(job, error_message=error_message)
         db.commit()
         return
 
@@ -140,6 +177,9 @@ def execute_job(
         return
 
     job_repo.mark_completed(
-        job, result_file_id=file_asset.id, result_project_version_id=result_version_id
+        job,
+        result_file_id=file_asset.id,
+        result_project_version_id=result_version_id,
+        result_metadata=result.metadata,
     )
     db.commit()

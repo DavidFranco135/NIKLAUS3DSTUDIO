@@ -348,6 +348,7 @@ class AIJobRepository:
         input_spec: dict,
         queue_name: str,
         idempotency_key: str,
+        source_image_file_id: UUID | None = None,
     ) -> AIJob:
         job = AIJob(
             organization_id=organization_id,
@@ -357,6 +358,7 @@ class AIJobRepository:
             input_spec=input_spec,
             queue_name=queue_name,
             idempotency_key=idempotency_key,
+            source_image_file_id=source_image_file_id,
         )
         self.session.add(job)
         self.session.flush()
@@ -367,12 +369,22 @@ class AIJobRepository:
         job.started_at = datetime.now(UTC)
         self.session.flush()
 
+    def mark_validating(self, job: AIJob) -> None:
+        job.status = "VALIDATING"
+        self.session.flush()
+
     def mark_completed(
-        self, job: AIJob, *, result_file_id: UUID, result_project_version_id: UUID | None
+        self,
+        job: AIJob,
+        *,
+        result_file_id: UUID,
+        result_project_version_id: UUID | None,
+        result_metadata: dict | None,
     ) -> None:
         job.status = "COMPLETED"
         job.result_file_id = result_file_id
         job.result_project_version_id = result_project_version_id
+        job.result_metadata = result_metadata
         job.finished_at = datetime.now(UTC)
         self.session.flush()
 

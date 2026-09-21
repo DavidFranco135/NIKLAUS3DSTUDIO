@@ -22,3 +22,11 @@ class StorageProvider(Protocol):
         a presigned URL to PUT bytes directly for a human-driven upload.
         """
         ...
+
+    def get_object(self, *, key: str) -> bytes:
+        """Server-side read — used by workers that need the actual bytes (e.g.
+
+        an ImageTo3DProvider reading the source image), as opposed to
+        `download_url`, which hands a human a presigned URL instead.
+        """
+        ...

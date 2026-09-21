@@ -24,6 +24,7 @@ export default function ProjectDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiImageFile, setAiImageFile] = useState<File | null>(null);
   const [aiJob, setAiJob] = useState<AIJob | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
@@ -74,6 +75,30 @@ export default function ProjectDetailPage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, loadAll]);
 
+  async function uploadAndConfirmFile(file: File, kind: string): Promise<string> {
+    const uploadInfo = await apiFetch<RequestUploadResponse>(`${orgPath}/files/upload-url`, {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({
+        filename: file.name,
+        mime_type: file.type || "application/octet-stream",
+        kind,
+      }),
+    });
+
+    const putResponse = await fetch(uploadInfo.upload_url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+    });
+    if (!putResponse.ok) {
+      throw new Error(`Falha ao enviar arquivo ao storage (HTTP ${putResponse.status}).`);
+    }
+
+    await apiFetch(`${orgPath}/files/${uploadInfo.file_id}/confirm`, { method: "POST", accessToken });
+    return uploadInfo.file_id;
+  }
+
   async function handleUpload(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken || !selectedFile) return;
@@ -81,35 +106,11 @@ export default function ProjectDetailPage() {
     setError(null);
     setMessage(null);
     try {
-      const kind = inferFileKind(selectedFile.name);
-      const uploadInfo = await apiFetch<RequestUploadResponse>(`${orgPath}/files/upload-url`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          mime_type: selectedFile.type || "application/octet-stream",
-          kind,
-        }),
-      });
-
-      const putResponse = await fetch(uploadInfo.upload_url, {
-        method: "PUT",
-        body: selectedFile,
-        headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
-      });
-      if (!putResponse.ok) {
-        throw new Error(`Falha ao enviar arquivo ao storage (HTTP ${putResponse.status}).`);
-      }
-
-      await apiFetch(`${orgPath}/files/${uploadInfo.file_id}/confirm`, {
-        method: "POST",
-        accessToken,
-      });
-
+      const fileId = await uploadAndConfirmFile(selectedFile, inferFileKind(selectedFile.name));
       await apiFetch(`${orgPath}/versions`, {
         method: "POST",
         accessToken,
-        body: JSON.stringify({ file_id: uploadInfo.file_id, label: label || null }),
+        body: JSON.stringify({ file_id: fileId, label: label || null }),
       });
 
       setSelectedFile(null);
@@ -141,12 +142,21 @@ export default function ProjectDetailPage() {
     setMessage(null);
     setAiJob(null);
     try {
+      let imageFileId: string | null = null;
+      if (aiImageFile) {
+        imageFileId = await uploadAndConfirmFile(aiImageFile, "source_image");
+      }
+
       const created = await apiFetch<AIJob>(
         `/api/v1/organizations/${currentOrganizationId}/ai/jobs`,
         {
           method: "POST",
           accessToken,
-          body: JSON.stringify({ prompt: aiPrompt, project_id: projectId }),
+          body: JSON.stringify({
+            prompt: aiPrompt || null,
+            image_file_id: imageFileId,
+            project_id: projectId,
+          }),
         }
       );
       const finished =
@@ -156,6 +166,7 @@ export default function ProjectDetailPage() {
       setAiJob(finished);
       if (finished.status === "COMPLETED") {
         setAiPrompt("");
+        setAiImageFile(null);
         setMessage("Modelo gerado pela IA — nova versão criada.");
         await loadAll();
       } else {
@@ -230,20 +241,31 @@ export default function ProjectDetailPage() {
         <form onSubmit={handleGenerateWithAI} className="space-y-3 rounded border border-neutral-800 p-4">
           <h2 className="text-lg font-medium">Gerar com IA</h2>
           <p className="text-xs text-neutral-500">
-            Fase 4: providers ainda são mocks (caixa placeholder) — nenhum modelo de IA real
-            integrado ainda. Prova o pipeline de orquestração/fallback, não a qualidade da peça.
+            Providers ainda são mocks de desenvolvimento (caixa placeholder, texto ou imagem) —
+            nenhum modelo de IA real integrado ainda. Prova o pipeline completo
+            (upload/orquestração/fallback/versionamento), não a qualidade da peça.
           </p>
           <textarea
-            required
-            placeholder='Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'
+            placeholder='Texto (opcional se enviar imagem). Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             rows={2}
             className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2"
           />
+          <div className="space-y-1">
+            <label className="block text-xs text-neutral-500">
+              Ou gerar a partir de uma imagem (opcional)
+            </label>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => setAiImageFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-sm"
+            />
+          </div>
           <button
             type="submit"
-            disabled={isGeneratingAI || !aiPrompt.trim()}
+            disabled={isGeneratingAI || (!aiPrompt.trim() && !aiImageFile)}
             className="rounded bg-purple-600 px-4 py-2 font-medium disabled:opacity-50"
           >
             {isGeneratingAI ? "Gerando…" : "Gerar com IA"}
@@ -254,6 +276,12 @@ export default function ProjectDetailPage() {
                 Tarefa classificada como <strong>{aiJob.task_type}</strong> — status:{" "}
                 <strong>{aiJob.status}</strong>
               </p>
+              {aiJob.result_metadata?.development_only && (
+                <p className="mt-1 rounded bg-yellow-950 p-2 text-yellow-300">
+                  MOCK DE DESENVOLVIMENTO — não é uma geração 3D real.{" "}
+                  {aiJob.result_metadata.note}
+                </p>
+              )}
               <ul className="mt-1 list-inside list-disc">
                 {aiJob.attempts.map((attempt) => (
                   <li key={attempt.attempt_number}>

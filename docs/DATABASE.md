@@ -165,14 +165,16 @@ Fluxo de upload: `POST .../files/upload-url` cria a linha (`status='pending'`) e
 | organization_id | UUID FK NOT NULL | |
 | project_id | UUID FK → projects NULL | |
 | requested_by | UUID FK → users NULL | |
-| task_type | TEXT NOT NULL | `PARAMETRIC_CAD` / `TEXT_TO_GENERATIVE_3D` (mais tipos em fases futuras) |
+| task_type | TEXT NOT NULL | `PARAMETRIC_CAD` / `TEXT_TO_GENERATIVE_3D` / `IMAGE_TO_3D` (mais tipos em fases futuras) |
 | input_spec | JSON NOT NULL | `{"prompt": ..., "spec": StructuredSpecification}` |
-| status | TEXT NOT NULL DEFAULT 'QUEUED' | QUEUED / PROCESSING / VALIDATING / COMPLETED / FAILED / CANCELLED — `VALIDATING`/`CANCELLED` existem como valores possíveis mas nenhuma transição os produz ainda (validação real é Fase 9; cancelamento não tem endpoint ainda) |
+| source_image_file_id | UUID FK → files NULL | setado quando `task_type=IMAGE_TO_3D`; adicionada na Fase 6 |
+| status | TEXT NOT NULL DEFAULT 'QUEUED' | QUEUED / PROCESSING / VALIDATING / COMPLETED / FAILED / CANCELLED — `VALIDATING` passou a ser usado de verdade na Fase 6 (`validate_generation_result`, sanidade estrutural básica); `CANCELLED` ainda não tem endpoint |
 | queue_name | TEXT NOT NULL | `ai.cad` / `ai.generate` |
-| idempotency_key | TEXT NOT NULL | sha256(prompt normalizado + project_id) — índice único junto com organization_id |
+| idempotency_key | TEXT NOT NULL | sha256(prompt normalizado + project_id + image_file_id) — índice único junto com organization_id |
 | error_message | TEXT NULL | |
 | result_file_id | UUID FK → files NULL | |
 | result_project_version_id | UUID FK → project_versions NULL | |
+| result_metadata | JSON NULL | metadata do `GenerationResult` do provider (ex. `placeholder`/`development_only`/`note`) — adicionada na Fase 6 para o mock/stub nunca ficar disfarçado de geração real na API/UI |
 | created_at, started_at, finished_at | TIMESTAMPTZ | |
 
 `UNIQUE (organization_id, idempotency_key)`.

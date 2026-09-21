@@ -6,44 +6,94 @@ from sqlalchemy.orm import Session
 
 from src.domain.ai.classifier import classify_task
 from src.domain.ai.spec import TaskType
-from src.domain.shared.exceptions import AIJobNotFoundError
+from src.domain.shared.exceptions import (
+    AIJobNotFoundError,
+    FileAssetNotFoundError,
+    InvalidImageInputError,
+)
 from src.infrastructure.ai_providers.registry import get_llm_provider
 from src.infrastructure.db.models import AIJob, AIJobAttempt
-from src.infrastructure.db.repositories import AIJobAttemptRepository, AIJobRepository
+from src.infrastructure.db.repositories import (
+    AIJobAttemptRepository,
+    AIJobRepository,
+    FileAssetRepository,
+)
 from src.infrastructure.queue.tasks import process_ai_job
 
 _QUEUE_BY_TASK_TYPE = {
     TaskType.PARAMETRIC_CAD: "ai.cad",
     TaskType.TEXT_TO_GENERATIVE_3D: "ai.generate",
+    TaskType.IMAGE_TO_3D: "ai.generate",
 }
 
+ALLOWED_IMAGE_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
-def _idempotency_key(*, prompt: str, project_id: UUID | None) -> str:
+
+def _idempotency_key(*, prompt: str, project_id: UUID | None, image_file_id: UUID | None) -> str:
     payload = json.dumps(
-        {"prompt": prompt.strip().lower(), "project_id": str(project_id) if project_id else None},
+        {
+            "prompt": prompt.strip().lower(),
+            "project_id": str(project_id) if project_id else None,
+            "image_file_id": str(image_file_id) if image_file_id else None,
+        },
         sort_keys=True,
     )
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def _validate_image_input(db: Session, *, organization_id: UUID, image_file_id: UUID) -> None:
+    """Fails fast, synchronously, before a job is even created — the "Image
+
+    Analysis" pre-processing step from ARCHITECTURE.md section 9.2, done for
+    real (metadata checks), not mocked. The actual bytes are only read later,
+    in the worker, to avoid blocking the request on a large file.
+    """
+    file_asset = FileAssetRepository(db).get(organization_id, image_file_id)
+    if file_asset is None:
+        raise FileAssetNotFoundError(str(image_file_id))
+    if file_asset.status != "uploaded":
+        raise InvalidImageInputError("A imagem ainda não foi confirmada (upload incompleto).")
+    if file_asset.kind != "source_image":
+        raise InvalidImageInputError(f"Arquivo não é uma imagem (kind={file_asset.kind}).")
+    if file_asset.mime_type not in ALLOWED_IMAGE_MIME_TYPES:
+        raise InvalidImageInputError(f"Formato de imagem não suportado: {file_asset.mime_type}.")
+    if file_asset.size_bytes and file_asset.size_bytes > MAX_IMAGE_SIZE_BYTES:
+        raise InvalidImageInputError(
+            f"Imagem excede o limite de {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB."
+        )
+
+
 def create_ai_job(
-    db: Session, *, organization_id: UUID, project_id: UUID | None, prompt: str, requested_by: UUID
+    db: Session,
+    *,
+    organization_id: UUID,
+    project_id: UUID | None,
+    prompt: str | None,
+    image_file_id: UUID | None,
+    requested_by: UUID,
 ) -> tuple[AIJob, bool]:
     """Returns (job, created). `created=False` means an equivalent job was
 
-    already in flight (or done) for this prompt+project — the idempotency key
-    from ARCHITECTURE.md section 15, so re-submitting the same request from a
-    flaky client doesn't spawn duplicate work.
+    already in flight (or done) for this prompt+project(+image) — the
+    idempotency key from ARCHITECTURE.md section 15, so re-submitting the
+    same request from a flaky client doesn't spawn duplicate work.
     """
-    idempotency_key = _idempotency_key(prompt=prompt, project_id=project_id)
+    prompt = prompt or ""
+    idempotency_key = _idempotency_key(
+        prompt=prompt, project_id=project_id, image_file_id=image_file_id
+    )
     job_repo = AIJobRepository(db)
 
     existing = job_repo.get_active_by_idempotency_key(organization_id, idempotency_key)
     if existing is not None:
         return existing, False
 
+    if image_file_id is not None:
+        _validate_image_input(db, organization_id=organization_id, image_file_id=image_file_id)
+
     spec = get_llm_provider().extract_specification(prompt)
-    task_type = classify_task(spec)
+    task_type = TaskType.IMAGE_TO_3D if image_file_id is not None else classify_task(spec)
 
     job = job_repo.create(
         organization_id=organization_id,
@@ -53,6 +103,7 @@ def create_ai_job(
         input_spec={"prompt": prompt, "spec": spec.model_dump()},
         queue_name=_QUEUE_BY_TASK_TYPE[task_type],
         idempotency_key=idempotency_key,
+        source_image_file_id=image_file_id,
     )
     db.commit()
 

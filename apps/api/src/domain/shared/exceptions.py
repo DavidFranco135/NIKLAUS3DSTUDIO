@@ -82,3 +82,11 @@ class ProviderNotConfiguredError(DomainError):
     """
 
     pass
+
+
+class InvalidImageInputError(DomainError):
+    pass
+
+
+class GenerationValidationFailedError(DomainError):
+    pass

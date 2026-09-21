@@ -62,6 +62,13 @@ class S3StorageProvider:
         except BotoCoreError as exc:
             raise StorageUnavailableError(str(exc)) from exc
 
+    def get_object(self, *, key: str) -> bytes:
+        try:
+            response = self._client.get_object(Bucket=self._bucket, Key=key)
+            return response["Body"].read()
+        except BotoCoreError as exc:
+            raise StorageUnavailableError(str(exc)) from exc
+
 
 _provider: S3StorageProvider | None = None
 

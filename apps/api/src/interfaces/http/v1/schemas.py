@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from src.domain.auth.roles import Role
 
@@ -133,8 +133,17 @@ class DownloadUrlResponse(BaseModel):
 
 
 class CreateAIJobRequest(BaseModel):
-    prompt: str = Field(min_length=3, max_length=2000)
+    prompt: str | None = Field(default=None, max_length=2000)
+    image_file_id: UUID | None = None
     project_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _require_prompt_or_image(self) -> "CreateAIJobRequest":
+        if not self.prompt and self.image_file_id is None:
+            raise ValueError("Informe um prompt e/ou uma imagem (image_file_id).")
+        if self.prompt is not None and len(self.prompt.strip()) < 3 and self.image_file_id is None:
+            raise ValueError("prompt deve ter ao menos 3 caracteres quando não há imagem.")
+        return self
 
 
 class AIJobAttemptResponse(BaseModel):
@@ -151,12 +160,14 @@ class AIJobAttemptResponse(BaseModel):
 class AIJobResponse(BaseModel):
     id: UUID
     project_id: UUID | None
+    source_image_file_id: UUID | None
     task_type: str
     status: str
     input_spec: dict
     error_message: str | None
     result_file_id: UUID | None
     result_project_version_id: UUID | None
+    result_metadata: dict | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None

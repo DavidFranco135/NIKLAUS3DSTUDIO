@@ -7,10 +7,13 @@ class FakeStorageProvider:
 
     `upload_url` returns a fake URL that also marks the object as "uploaded" so
     tests can call `confirm` right away without a client actually PUTing bytes.
+    Tests that need real bytes behind a key (e.g. an image an AI job will read
+    back) call `seed()` directly, since there's no real HTTP PUT to intercept.
     """
 
     def __init__(self) -> None:
         self._objects: dict[str, ObjectStat] = {}
+        self._data: dict[str, bytes] = {}
 
     def upload_url(self, *, key: str, content_type: str, expires_in: int) -> str:
         self._objects[key] = ObjectStat(size_bytes=1234, content_type=content_type)
@@ -24,6 +27,16 @@ class FakeStorageProvider:
 
     def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
         self._objects[key] = ObjectStat(size_bytes=len(data), content_type=content_type)
+        self._data[key] = data
+
+    def get_object(self, *, key: str) -> bytes:
+        if key not in self._data:
+            raise StorageUnavailableError(f"No seeded bytes for key {key}")
+        return self._data[key]
+
+    def seed(self, *, key: str, data: bytes, content_type: str) -> None:
+        self._objects[key] = ObjectStat(size_bytes=len(data), content_type=content_type)
+        self._data[key] = data
 
 
 class UnavailableStorageProvider:
@@ -39,4 +52,7 @@ class UnavailableStorageProvider:
         raise StorageUnavailableError(f"Could not connect to storage for key {key}")
 
     def put_object(self, *, key: str, data: bytes, content_type: str) -> None:
+        raise StorageUnavailableError(f"Could not connect to storage for key {key}")
+
+    def get_object(self, *, key: str) -> bytes:
         raise StorageUnavailableError(f"Could not connect to storage for key {key}")

@@ -26,13 +26,17 @@ def create_job(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AIJobResponse:
-    job, _created = use_cases.create_ai_job(
-        db,
-        organization_id=organization_id,
-        project_id=payload.project_id,
-        prompt=payload.prompt,
-        requested_by=current_user.id,
-    )
+    try:
+        job, _created = use_cases.create_ai_job(
+            db,
+            organization_id=organization_id,
+            project_id=payload.project_id,
+            prompt=payload.prompt,
+            image_file_id=payload.image_file_id,
+            requested_by=current_user.id,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
     return AIJobResponse.model_validate(job)
 
 

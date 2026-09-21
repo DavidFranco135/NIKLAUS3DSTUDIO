@@ -14,7 +14,12 @@ from tests.fakes.fake_storage import FakeStorageProvider
 
 
 @pytest.fixture()
-def client() -> TestClient:
+def fake_storage() -> FakeStorageProvider:
+    return FakeStorageProvider()
+
+
+@pytest.fixture()
+def client(fake_storage: FakeStorageProvider) -> TestClient:
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -29,8 +34,6 @@ def client() -> TestClient:
             yield db
         finally:
             db.close()
-
-    fake_storage = FakeStorageProvider()
 
     # Celery tasks (run synchronously in-process here, via CELERY_TASK_ALWAYS_EAGER)
     # open their own DB session / storage provider outside FastAPI's DI, so they

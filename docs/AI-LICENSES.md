@@ -30,6 +30,8 @@
 
 **Decisão explícita da Fase 5 (registrada aqui para não se perder):** nenhuma API paga de terceiros foi integrada e nenhum modelo foi baixado/executado localmente nesta fase — esta máquina de desenvolvimento não tem GPU confirmada. Quando a infraestrutura de GPU adequada existir, a prioridade é integrar primeiro modelos open source/open weight cuja licença permita o uso comercial pretendido, verificando o checklist acima modelo a modelo antes de qualquer integração real.
 
+**Fase 6:** o fluxo de upload de imagem → job → orquestrador ficou real e testado de ponta a ponta (ver [AI.md](AI.md)), mas continua usando `MockImageTo3DProvider` (ignora a imagem, devolve um cubo placeholder, rotulado `development_only` na API/UI). Os 4 stubs acima seguem inalterados — nenhum foi promovido a integração real. Ver [AI.md](AI.md) para os critérios de comparação a preencher antes de escolher o primeiro modelo de verdade.
+
 ## Candidatos — Ferramentas determinísticas (não-IA generativa, risco de licença baixo mas ainda a confirmar)
 
 | Ferramenta | Licença | Uso comercial | Observações |

@@ -178,6 +178,11 @@ class AIJob(Base):
     )
     task_type: Mapped[str] = mapped_column(String(40), nullable=False)
     input_spec: Mapped[dict] = mapped_column(JSON, nullable=False)
+    source_image_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("files.id", name="fk_ai_jobs_source_image_file_id"),
+        nullable=True,
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="QUEUED")
     queue_name: Mapped[str] = mapped_column(String(50), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
@@ -188,6 +193,7 @@ class AIJob(Base):
     result_project_version_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("project_versions.id"), nullable=True
     )
+    result_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

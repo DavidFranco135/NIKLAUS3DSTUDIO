@@ -203,7 +203,9 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   ├── ai/
 │       │   │   │   ├── ports.py     # AIProvider, CADProvider, TextTo3DProvider, LLMProvider (Fase 4)
 │       │   │   │   ├── spec.py      # StructuredSpecification, TaskType (Fase 4)
-│       │   │   │   └── classifier.py  # classify_task: dimensões exatas -> CAD, senão generativo
+│       │   │   │   ├── classifier.py  # classify_task: dimensões exatas -> CAD, senão generativo
+│       │   │   │   └── result_validation.py  # validate_generation_result (Fase 6 — sanidade
+│       │   │   │                              # estrutural básica, não é o Printability Engine)
 │       │   │   ├── mesh/
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
@@ -450,6 +452,8 @@ class SlicerProvider(Protocol):
 
 **Status na Fase 5:** `TextTo3DProvider` e `CADProvider` têm mocks funcionais (Fase 4); `ImageTo3DProvider`, `MeshRepairProvider` e `TextureProvider` ganharam mocks funcionais nesta fase (`MockImageTo3DProvider`, `MockMeshRepairProvider`, `MockTextureProvider` — geometria/textura geradas em Python puro, sem GPU). `PrintabilityProvider` e `SlicerProvider` ainda não existem (Fases 9-10). Os quatro candidatos de `AI-LICENSES.md` (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface real e levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem baixar/rodar modelo local sem GPU confirmada nesta máquina (ver `AI-LICENSES.md`).
 
+**Status na Fase 6:** `ImageTo3DProvider` ganhou um fluxo real de ponta a ponta — upload de imagem (reaproveita o fluxo de arquivos da Fase 3) → `POST .../ai/jobs` com `image_file_id` → orchestrator lê os bytes via `StorageProvider.get_object()` (novo método) → `MockImageTo3DProvider` (explicitamente rotulado `development_only` na resposta da API e na UI) → validação estrutural básica (`VALIDATING`, `validate_generation_result`) → nova versão do projeto. Nada disso é geração 3D real a partir da imagem — ver [docs/AI.md](AI.md) para o guia de como plugar um adapter real depois, e os critérios de comparação a preencher antes de escolher o primeiro modelo.
+
 Registro de providers é feito em Python (`registry.py`), não pelo YAML abaixo — o exemplo permanece como direção futura (útil quando o número de providers/prioridades justificar configuração externa em vez de uma lista no código):
 
 ```yaml
@@ -621,6 +625,8 @@ Abstração `ComputeProvider` com backends `LOCAL_GPU`, `CLOUD_GPU` (ex.: endpoi
 **Implementado na Fase 3:** `POST .../files/upload-url` cria o registro (`status='pending'`) e devolve uma URL de `PUT` pré-assinada; `POST .../files/{id}/confirm` faz um `HEAD` no storage (via `StorageProvider.stat()`) para confirmar existência/tamanho antes de marcar `status='uploaded'`. Se o storage estiver inacessível, a API responde `503` com uma mensagem clara (`StorageUnavailableError`) em vez de um 500 genérico — isso foi encontrado e corrigido durante teste manual desta fase (o cliente boto3 tem timeout/retry ajustados para falhar rápido nesse cenário). Validação de MIME/magic bytes, limite de tamanho por plano e scanning antivírus continuam pendentes para uma fase de segurança dedicada.
 
 *Nota de ambiente de desenvolvimento:* esta máquina não tem Docker instalado, então o `S3StorageProvider` (real, contra MinIO/S3) não pôde ser testado de ponta a ponta aqui — apenas a geração de URL pré-assinada (que não depende de rede) foi verificada. Os testes automatizados usam um `StorageProvider` fake em memória (`tests/fakes/fake_storage.py`), não MinIO. Para testar o upload real, é necessário `docker compose up` (requer Docker Desktop ou WSL) ou apontar `S3_ENDPOINT_URL`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` para um bucket S3 real.
+
+**Implementado na Fase 6:** `StorageProvider.get_object()` — leitura server-side de bytes (diferente de `download_url`, que dá uma URL pré-assinada para um humano baixar). Usado pelo AI Orchestrator para ler a imagem de origem de um job `IMAGE_TO_3D` antes de passá-la ao provider. Mesma limitação de ambiente: verificado contra o fake de testes e contra os erros reais de conectividade (503 gracioso), não contra um MinIO de verdade.
 
 ## 18. API
 

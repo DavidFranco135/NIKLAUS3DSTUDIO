@@ -6,17 +6,24 @@ _PLACEHOLDER_SIZE_MM = 50.0
 
 
 class MockImageTo3DProvider(ImageTo3DProvider):
-    """Stands in for Hunyuan3D/TRELLIS/Stable Fast 3D/SPAR3D (Fase 6).
+    """Development-only stand-in for a real image-to-3D engine (Hunyuan3D,
 
-    Ignores the image entirely and returns the same placeholder cube as the
-    text-to-3D mock — proves the port/orchestrator wiring, not image
-    understanding.
+    TRELLIS, Stable Fast 3D, SPAR3D — none integrated yet, see AI-LICENSES.md).
+    Ignores the image entirely and returns a placeholder cube — this proves
+    the upload → job → orchestrator → version pipeline end to end, but it is
+    NOT 3D reconstruction and must never be presented to a user as one.
     """
 
     name = "mock_image_to_3d"
 
     def health_check(self) -> ProviderHealth:
-        return ProviderHealth(healthy=True)
+        return ProviderHealth(
+            healthy=True,
+            detail=(
+                "Provider de DESENVOLVIMENTO — gera um cubo placeholder, "
+                "não reconstrói a imagem."
+            ),
+        )
 
     def generate_from_image(
         self, image: ImageInput, spec: StructuredSpecification
@@ -31,9 +38,11 @@ class MockImageTo3DProvider(ImageTo3DProvider):
             metadata={
                 "provider": self.name,
                 "placeholder": True,
+                "development_only": True,
                 "note": (
-                    "Cubo placeholder — a imagem recebida (" + image.mime_type + ") foi "
-                    "ignorada. Nenhum modelo real de imagem-para-3D integrado ainda (Fase 6)."
+                    "MOCK DE DESENVOLVIMENTO — não é uma reconstrução 3D real da imagem "
+                    f"enviada ({image.mime_type}). Devolve sempre o mesmo cubo placeholder. "
+                    "Nenhum modelo generativo real foi executado (ver docs/AI.md)."
                 ),
             },
         )
