@@ -6,8 +6,9 @@ from sqlalchemy.pool import StaticPool
 
 from src.infrastructure.db import models  # noqa: F401  (registers tables on Base.metadata)
 from src.infrastructure.db.base import Base
-from src.interfaces.http.dependencies import get_db
+from src.interfaces.http.dependencies import get_db, get_storage
 from src.main import app
+from tests.fakes.fake_storage import FakeStorageProvider
 
 
 @pytest.fixture()
@@ -27,7 +28,10 @@ def client() -> TestClient:
         finally:
             db.close()
 
+    fake_storage = FakeStorageProvider()
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_storage] = lambda: fake_storage
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

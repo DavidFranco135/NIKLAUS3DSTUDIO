@@ -104,51 +104,56 @@ Login e `/auth/refresh` emitem um access token JWT stateless (15 min) e um refre
 
 ### projects
 
+*(Implementada na Fase 3. `customer_id` foi omitido por ora — o módulo de clientes é da Fase 13; a coluna entra numa migration própria quando `customers` existir. `active_version_id` foi adicionado — não estava no desenho original — para o projeto apontar para sua versão "atual" sem precisar de uma subquery a cada leitura.)*
+
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | UUID PK | |
 | organization_id | UUID FK NOT NULL | índice |
-| customer_id | UUID FK → customers NULL | |
 | name | TEXT NOT NULL | |
-| description | TEXT | |
+| description | TEXT NULL | |
 | status | TEXT NOT NULL DEFAULT 'draft' | draft / in_progress / completed / archived |
-| created_by | UUID FK → users | |
-| created_at, updated_at, deleted_at | TIMESTAMPTZ | |
+| active_version_id | UUID FK → project_versions NULL | FK circular com `project_versions`, criada via `ALTER TABLE` após as duas tabelas existirem |
+| created_by | UUID FK → users NULL | |
+| created_at, updated_at, deleted_at | TIMESTAMPTZ | soft delete: `deleted_at` |
 
 ### project_versions
+
+*(`prompt` e `ai_generation_id` ficam de fora até a Fase 4 — não há geração por IA ainda, só upload manual. `source_type` já aceita o valor futuro sem migration de schema, é `TEXT`.)*
 
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | UUID PK | |
-| project_id | UUID FK NOT NULL | |
-| version_number | INTEGER NOT NULL | sequencial por projeto |
-| label | TEXT | ex. "v3 — furo ajustado" |
-| prompt | TEXT NULL | prompt original do usuário, se aplicável |
-| source_type | TEXT NOT NULL | `text_generative` / `image_to_3d` / `parametric_cad` / `manual_upload` / `mesh_edit` |
-| ai_generation_id | UUID FK → ai_generations NULL | |
-| status | TEXT NOT NULL | draft / generating / ready / failed |
-| created_by | UUID FK → users | |
+| project_id | UUID FK NOT NULL | índice |
+| version_number | INTEGER NOT NULL | sequencial por projeto, calculado em `next_version_number` |
+| label | TEXT NULL | ex. "v3 — furo ajustado" |
+| source_type | TEXT NOT NULL DEFAULT 'manual_upload' | `manual_upload` por ora; `text_generative` / `image_to_3d` / `parametric_cad` / `mesh_edit` entram na Fase 4+ |
+| status | TEXT NOT NULL DEFAULT 'draft' | draft / ready |
+| created_by | UUID FK → users NULL | |
 | created_at | TIMESTAMPTZ | |
 
-`UNIQUE (project_id, version_number)`. Permite "voltar para v2" apontando o projeto ativo para outra versão sem apagar as demais.
+`UNIQUE (project_id, version_number)`. Permite "voltar para v2" apontando `projects.active_version_id` para outra versão sem apagar as demais.
 
 ### files
+
+*(`sha256_hash` e `size_bytes` são NULL até a confirmação do upload — ver fluxo abaixo. Coluna `status` adicionada — não estava no desenho original — para modelar o ciclo `pending` → `uploaded` do upload direto ao object storage.)*
 
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | UUID PK | |
 | organization_id | UUID FK NOT NULL | |
 | project_id | UUID FK → projects NULL | |
-| project_version_id | UUID FK → project_versions NULL | |
+| project_version_id | UUID FK → project_versions NULL | setado apenas quando o arquivo é anexado a uma versão |
 | kind | TEXT NOT NULL | `source_image` / `model_stl` / `model_obj` / `model_glb` / `model_3mf` / `model_step` / `preview` / `document` |
-| storage_key | TEXT NOT NULL | caminho no object storage |
-| sha256_hash | TEXT NOT NULL | índice, deduplicação |
+| storage_key | TEXT NOT NULL UNIQUE | caminho no object storage: `org/{organization_id}/project/{project_id}/{file_id}{ext}` |
+| sha256_hash | TEXT NULL | reservado para deduplicação — cálculo ainda não implementado (exigiria baixar o arquivo; ver Fase 8/Mesh Processing) |
 | mime_type | TEXT NOT NULL | |
-| size_bytes | BIGINT NOT NULL | |
+| size_bytes | BIGINT NULL | preenchido no `confirm` (HEAD no object storage) |
+| status | TEXT NOT NULL DEFAULT 'pending' | `pending` (URL de upload emitida) → `uploaded` (confirmado) |
 | uploaded_by | UUID FK → users NULL | |
 | created_at | TIMESTAMPTZ | |
 
-Índice em `(organization_id, sha256_hash)`.
+Fluxo de upload: `POST .../files/upload-url` cria a linha (`status='pending'`) e devolve uma URL pré-assinada de `PUT`; o cliente envia os bytes direto ao object storage; `POST .../files/{id}/confirm` faz um `HEAD` no storage para confirmar existência e tamanho, e só então marca `status='uploaded'`. Uma versão só pode ser criada a partir de um arquivo `uploaded`.
 
 ### ai_jobs
 

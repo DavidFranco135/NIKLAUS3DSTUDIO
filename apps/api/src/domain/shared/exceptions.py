@@ -36,3 +36,27 @@ class CannotRemoveLastOwnerError(DomainError):
 
 class UserAlreadyMemberError(DomainError):
     pass
+
+
+class ProjectNotFoundError(DomainError):
+    pass
+
+
+class ProjectVersionNotFoundError(DomainError):
+    pass
+
+
+class FileAssetNotFoundError(DomainError):
+    pass
+
+
+class FileNotUploadedError(DomainError):
+    pass
+
+
+class UnsupportedFileKindError(DomainError):
+    pass
+
+
+class StorageUnavailableError(DomainError):
+    pass

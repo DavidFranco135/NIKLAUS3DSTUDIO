@@ -3,9 +3,15 @@ from fastapi import HTTPException, status
 from src.domain.shared.exceptions import (
     CannotRemoveLastOwnerError,
     EmailAlreadyRegisteredError,
+    FileAssetNotFoundError,
+    FileNotUploadedError,
     InvalidCredentialsError,
     OrganizationNotFoundError,
+    ProjectNotFoundError,
+    ProjectVersionNotFoundError,
     RefreshTokenInvalidError,
+    StorageUnavailableError,
+    UnsupportedFileKindError,
     UserAlreadyMemberError,
     UserNotFoundError,
 )
@@ -18,6 +24,12 @@ _STATUS_BY_ERROR = {
     UserNotFoundError: status.HTTP_404_NOT_FOUND,
     UserAlreadyMemberError: status.HTTP_409_CONFLICT,
     CannotRemoveLastOwnerError: status.HTTP_409_CONFLICT,
+    ProjectNotFoundError: status.HTTP_404_NOT_FOUND,
+    ProjectVersionNotFoundError: status.HTTP_404_NOT_FOUND,
+    FileAssetNotFoundError: status.HTTP_404_NOT_FOUND,
+    FileNotUploadedError: status.HTTP_409_CONFLICT,
+    UnsupportedFileKindError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 

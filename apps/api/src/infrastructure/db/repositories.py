@@ -4,7 +4,15 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.infrastructure.db.models import Organization, OrgMember, RefreshToken, User
+from src.infrastructure.db.models import (
+    FileAsset,
+    Organization,
+    OrgMember,
+    Project,
+    ProjectVersion,
+    RefreshToken,
+    User,
+)
 
 
 def _as_aware_utc(value: datetime) -> datetime:
@@ -123,4 +131,148 @@ class RefreshTokenRepository:
 
     def revoke(self, token: RefreshToken) -> None:
         token.revoked_at = datetime.now(UTC)
+        self.session.flush()
+
+
+class ProjectRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, project_id: UUID) -> Project | None:
+        return self.session.scalar(
+            select(Project).where(
+                Project.id == project_id,
+                Project.organization_id == organization_id,
+                Project.deleted_at.is_(None),
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Project]:
+        return list(
+            self.session.scalars(
+                select(Project)
+                .where(Project.organization_id == organization_id, Project.deleted_at.is_(None))
+                .order_by(Project.created_at.desc())
+            )
+        )
+
+    def create(
+        self, *, organization_id: UUID, name: str, description: str | None, created_by: UUID
+    ) -> Project:
+        project = Project(
+            organization_id=organization_id,
+            name=name,
+            description=description,
+            created_by=created_by,
+        )
+        self.session.add(project)
+        self.session.flush()
+        return project
+
+    def soft_delete(self, project: Project) -> None:
+        project.deleted_at = datetime.now(UTC)
+        self.session.flush()
+
+
+class ProjectVersionRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, project_id: UUID, version_id: UUID) -> ProjectVersion | None:
+        return self.session.scalar(
+            select(ProjectVersion).where(
+                ProjectVersion.id == version_id, ProjectVersion.project_id == project_id
+            )
+        )
+
+    def list_for_project(self, project_id: UUID) -> list[ProjectVersion]:
+        return list(
+            self.session.scalars(
+                select(ProjectVersion)
+                .where(ProjectVersion.project_id == project_id)
+                .order_by(ProjectVersion.version_number.desc())
+            )
+        )
+
+    def next_version_number(self, project_id: UUID) -> int:
+        current_max = self.session.scalar(
+            select(ProjectVersion.version_number)
+            .where(ProjectVersion.project_id == project_id)
+            .order_by(ProjectVersion.version_number.desc())
+            .limit(1)
+        )
+        return (current_max or 0) + 1
+
+    def create(
+        self,
+        *,
+        project_id: UUID,
+        version_number: int,
+        label: str | None,
+        source_type: str,
+        created_by: UUID,
+    ) -> ProjectVersion:
+        version = ProjectVersion(
+            project_id=project_id,
+            version_number=version_number,
+            label=label,
+            source_type=source_type,
+            status="ready",
+            created_by=created_by,
+        )
+        self.session.add(version)
+        self.session.flush()
+        return version
+
+
+class FileAssetRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, file_id: UUID) -> FileAsset | None:
+        return self.session.scalar(
+            select(FileAsset).where(
+                FileAsset.id == file_id, FileAsset.organization_id == organization_id
+            )
+        )
+
+    def list_for_version(self, project_version_id: UUID) -> list[FileAsset]:
+        return list(
+            self.session.scalars(
+                select(FileAsset)
+                .where(FileAsset.project_version_id == project_version_id)
+                .order_by(FileAsset.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        project_id: UUID | None,
+        kind: str,
+        storage_key: str,
+        mime_type: str,
+        uploaded_by: UUID,
+    ) -> FileAsset:
+        file_asset = FileAsset(
+            organization_id=organization_id,
+            project_id=project_id,
+            kind=kind,
+            storage_key=storage_key,
+            mime_type=mime_type,
+            uploaded_by=uploaded_by,
+        )
+        self.session.add(file_asset)
+        self.session.flush()
+        return file_asset
+
+    def mark_uploaded(self, file_asset: FileAsset, *, size_bytes: int, mime_type: str) -> None:
+        file_asset.status = "uploaded"
+        file_asset.size_bytes = size_bytes
+        file_asset.mime_type = mime_type
+        self.session.flush()
+
+    def attach_to_version(self, file_asset: FileAsset, *, project_version_id: UUID) -> None:
+        file_asset.project_version_id = project_version_id
         self.session.flush()

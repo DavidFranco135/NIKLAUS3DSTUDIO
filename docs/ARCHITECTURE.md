@@ -208,11 +208,13 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
 │       │   │   ├── calculator/
-│       │   │   └── shared/          # security.py (hash/JWT), exceptions.py, slug.py
+│       │   │   └── shared/          # security.py (hash/JWT), exceptions.py, slug.py,
+│       │   │                        # storage_port.py (StorageProvider), file_kinds.py
 │       │   ├── application/         # use cases / services (orquestram domínio + repos)
 │       │   │   ├── auth/            # register, login, refresh, logout (Fase 2)
 │       │   │   ├── organizations/   # create_organization, add/remove/list_members (Fase 2)
-│       │   │   ├── projects/
+│       │   │   ├── projects/        # CRUD, versões, activate_version (Fase 3)
+│       │   │   ├── files/           # request_upload, confirm_upload, get_download_url (Fase 3)
 │       │   │   ├── ai_jobs/
 │       │   │   ├── orders/
 │       │   │   ├── inventory/
@@ -230,20 +232,23 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   ├── slicers/
 │       │   │   │   ├── prusaslicer/
 │       │   │   │   └── orcaslicer/
-│       │   │   ├── storage/         # S3Client, LocalFsClient (dev)
+│       │   │   ├── storage/         # s3_storage.py — S3StorageProvider (real: MinIO/S3);
+│       │   │   │                    # nos testes, StorageProvider é substituído por um fake
+│       │   │   │                    # em memória (tests/fakes/), nunca por um MinIO real
 │       │   │   ├── db/              # SQLAlchemy models, repositórios, session
 │       │   │   └── queue/           # Celery app, tasks
 │       │   ├── interfaces/
 │       │   │   └── http/            # routers FastAPI, schemas Pydantic (DTO de API)
-│       │   │       ├── dependencies.py  # get_current_user, require_org_role
+│       │   │       ├── dependencies.py  # get_current_user, require_org_role, get_storage
 │       │   │       ├── errors.py        # DomainError -> HTTPException
 │       │   │       ├── v1/
 │       │   │       │   ├── auth.py
 │       │   │       │   ├── users.py
 │       │   │       │   ├── organizations.py
-│       │   │       │   ├── projects.py
+│       │   │       │   ├── projects.py  # projetos, versões e arquivos (upload-url/confirm/
+│       │   │       │   │                # download-url ficam aninhados aqui até files.py
+│       │   │       │   │                # precisar existir fora do contexto de um projeto)
 │       │   │       │   ├── ai.py
-│       │   │       │   ├── files.py
 │       │   │       │   ├── customers.py
 │       │   │       │   ├── orders.py
 │       │   │       │   ├── inventory.py
@@ -596,6 +601,10 @@ Abstração `ComputeProvider` com backends `LOCAL_GPU`, `CLOUD_GPU` (ex.: endpoi
 - Upload direto do cliente via URL pré-assinada (o backend nunca faz proxy de bytes grandes); download também via URL pré-assinada de curta duração.
 - Validação de arquivo: extensão **e** MIME/magic bytes (nunca confiar só na extensão), limite de tamanho configurável por organização/plano, scanning antivírus assíncrono antes de disponibilizar para outros usuários da organização quando o plano exigir.
 - Estrutura de chaves: `org/{organization_id}/project/{project_id}/{file_id}.{ext}`.
+
+**Implementado na Fase 3:** `POST .../files/upload-url` cria o registro (`status='pending'`) e devolve uma URL de `PUT` pré-assinada; `POST .../files/{id}/confirm` faz um `HEAD` no storage (via `StorageProvider.stat()`) para confirmar existência/tamanho antes de marcar `status='uploaded'`. Se o storage estiver inacessível, a API responde `503` com uma mensagem clara (`StorageUnavailableError`) em vez de um 500 genérico — isso foi encontrado e corrigido durante teste manual desta fase (o cliente boto3 tem timeout/retry ajustados para falhar rápido nesse cenário). Validação de MIME/magic bytes, limite de tamanho por plano e scanning antivírus continuam pendentes para uma fase de segurança dedicada.
+
+*Nota de ambiente de desenvolvimento:* esta máquina não tem Docker instalado, então o `S3StorageProvider` (real, contra MinIO/S3) não pôde ser testado de ponta a ponta aqui — apenas a geração de URL pré-assinada (que não depende de rede) foi verificada. Os testes automatizados usam um `StorageProvider` fake em memória (`tests/fakes/fake_storage.py`), não MinIO. Para testar o upload real, é necessário `docker compose up` (requer Docker Desktop ou WSL) ou apontar `S3_ENDPOINT_URL`/`S3_ACCESS_KEY`/`S3_SECRET_KEY` para um bucket S3 real.
 
 ## 18. API
 

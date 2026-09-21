@@ -2,7 +2,9 @@
 
 Plataforma SaaS multi-tenant de Inteligência Artificial para produção de impressão 3D — um "copiloto de produção 3D" que permite criar, converter, reparar, precificar e produzir peças 3D via chat, texto ou imagem, e administrar todo o negócio de impressão 3D (clientes, pedidos, estoque, impressoras, financeiro).
 
-> **Status atual: FASE 2 — Autenticação e multi-tenancy (backend concluído).** Cadastro (cria organização + usuário OWNER), login, refresh/logout (JWT de acesso + refresh token rotativo em cookie httpOnly), RBAC por organização (OWNER/ADMIN/MANAGER/OPERATOR/VIEWER) e isolamento entre tenants testado. Ainda sem telas de login/cadastro no frontend e sem nenhuma feature de negócio (projetos, clientes, etc.) — isso começa na Fase 3.
+> **Status atual: FASE 3 — Projetos e arquivos.** CRUD de projetos e versões, upload/download via URL pré-assinada (S3/MinIO), viewer 3D básico (GLB) no frontend. Frontend agora tem cadastro/login/dashboard/detalhe de projeto reais, consumindo a API (não é mais só uma página de health-check). `sha256_hash`/deduplicação e o restante do pipeline de IA (Fase 4+) ainda não existem.
+>
+> **Limitação conhecida deste ambiente:** esta máquina não tem Docker instalado, então o fluxo de upload real (PUT no MinIO + confirmação via HEAD) não pôde ser testado de ponta a ponta aqui — só a geração da URL pré-assinada, que não depende de rede. Os testes automatizados usam um storage fake em memória. Para testar upload de verdade, use `docker compose up` (Docker Desktop/WSL) ou aponte as variáveis `S3_*` para um bucket real.
 
 ## Como rodar localmente
 
