@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 from src.infrastructure.db.models import (
     AIJob,
     AIJobAttempt,
+    CostProfile,
     FileAsset,
     Organization,
     OrgMember,
     Project,
     ProjectVersion,
+    Quote,
     RefreshToken,
     User,
 )
@@ -452,3 +454,114 @@ class AIJobAttemptRepository:
         self.session.add(attempt)
         self.session.flush()
         return attempt
+
+
+class CostProfileRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, cost_profile_id: UUID) -> CostProfile | None:
+        return self.session.scalar(
+            select(CostProfile).where(
+                CostProfile.id == cost_profile_id,
+                CostProfile.organization_id == organization_id,
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[CostProfile]:
+        return list(
+            self.session.scalars(
+                select(CostProfile)
+                .where(CostProfile.organization_id == organization_id)
+                .order_by(CostProfile.created_at)
+            )
+        )
+
+    def get_default(self, organization_id: UUID) -> CostProfile | None:
+        return self.session.scalar(
+            select(CostProfile).where(
+                CostProfile.organization_id == organization_id,
+                CostProfile.is_default.is_(True),
+            )
+        )
+
+    def clear_default(self, organization_id: UUID) -> None:
+        for profile in self.list_for_org(organization_id):
+            if profile.is_default:
+                profile.is_default = False
+        self.session.flush()
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        energy_cost_per_kwh: float,
+        labor_cost_per_hour: float,
+        packaging_cost_flat: float,
+        waste_percentage: float,
+        fees_percentage: float,
+        profit_margin_percentage: float,
+        tax_percentage: float | None,
+        is_default: bool,
+    ) -> CostProfile:
+        profile = CostProfile(
+            organization_id=organization_id,
+            name=name,
+            energy_cost_per_kwh=energy_cost_per_kwh,
+            labor_cost_per_hour=labor_cost_per_hour,
+            packaging_cost_flat=packaging_cost_flat,
+            waste_percentage=waste_percentage,
+            fees_percentage=fees_percentage,
+            profit_margin_percentage=profit_margin_percentage,
+            tax_percentage=tax_percentage,
+            is_default=is_default,
+        )
+        self.session.add(profile)
+        self.session.flush()
+        return profile
+
+
+class QuoteRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, quote_id: UUID) -> Quote | None:
+        return self.session.scalar(
+            select(Quote).where(Quote.id == quote_id, Quote.organization_id == organization_id)
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Quote]:
+        return list(
+            self.session.scalars(
+                select(Quote)
+                .where(Quote.organization_id == organization_id)
+                .order_by(Quote.created_at.desc())
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        cost_profile_id: UUID,
+        project_version_id: UUID | None,
+        customer_id: UUID | None,
+        created_by: UUID | None,
+        cost_breakdown_snapshot: dict,
+        production_cost: float,
+        suggested_price: float,
+    ) -> Quote:
+        quote = Quote(
+            organization_id=organization_id,
+            cost_profile_id=cost_profile_id,
+            project_version_id=project_version_id,
+            customer_id=customer_id,
+            created_by=created_by,
+            cost_breakdown_snapshot=cost_breakdown_snapshot,
+            production_cost=production_cost,
+            suggested_price=suggested_price,
+        )
+        self.session.add(quote)
+        self.session.flush()
+        return quote

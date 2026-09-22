@@ -3,15 +3,18 @@ from fastapi import HTTPException, status
 from src.domain.shared.exceptions import (
     AIJobNotFoundError,
     CannotRemoveLastOwnerError,
+    CostProfileNotFoundError,
     EmailAlreadyRegisteredError,
     FileAssetNotFoundError,
     FileNotUploadedError,
+    InvalidCostInputsError,
     InvalidCredentialsError,
     InvalidImageInputError,
     OrganizationNotFoundError,
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
     ProviderNotConfiguredError,
+    QuoteNotFoundError,
     RefreshTokenInvalidError,
     StorageUnavailableError,
     UnsupportedFileKindError,
@@ -36,6 +39,9 @@ _STATUS_BY_ERROR = {
     StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
     AIJobNotFoundError: status.HTTP_404_NOT_FOUND,
     ProviderNotConfiguredError: status.HTTP_501_NOT_IMPLEMENTED,
+    CostProfileNotFoundError: status.HTTP_404_NOT_FOUND,
+    QuoteNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidCostInputsError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 

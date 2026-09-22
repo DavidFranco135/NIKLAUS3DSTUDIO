@@ -620,6 +620,17 @@ suggested_price =
 - Cada cálculo realizado gera um `quote` com snapshot dos valores usados (para auditoria — se o perfil de custo mudar depois, orçamentos antigos não mudam retroativamente).
 - Módulo puro Python testável isoladamente (`domain/calculator/`), sem I/O.
 
+**Implementado na Fase 11.** `domain/calculator/engine.py::calculate_quote(inputs, profile) -> CostBreakdown` é uma função pura (sem I/O, sem SQLAlchemy) que recebe `QuoteInputs` (`domain/calculator/inputs.py` — números por peça: `material_cost`, `print_time_hours`, `machine_cost_per_hour`, `energy_kwh`, `labor_hours`) e `CostProfileValues` (`domain/calculator/profile.py` — os fatores de política, espelhando as colunas de `cost_profiles`). Rejeita qualquer valor negativo com `InvalidCostInputsError` antes de calcular.
+
+A fórmula de uma linha da seção acima não desambiguava a base de cada percentual — decisões explícitas tomadas na implementação (documentadas no docstring de `calculate_quote`):
+- `waste_percentage` é material extra orçado para falhas de impressão/purga — aplicado só sobre `material_cost`, não sobre o subtotal inteiro.
+- `fees_percentage` (taxas de pagamento/marketplace, etc.) incide sobre o subtotal de produção (material-com-desperdício + energia + máquina + mão de obra + embalagem), já que a fórmula lista `fees` como componente de `production_cost`, antes da margem.
+- `tax_percentage` incide depois da margem de lucro, sobre o preço que o cliente pagaria — não sobre o custo de produção interno.
+
+`machine_cost_per_hour` (depreciação/manutenção ratable por hora) é informado por peça em `QuoteInputs`, não faz parte de `CostProfile` — ainda não existe um catálogo de impressoras/máquinas persistido (isso é uma fase futura de Estoque/Impressoras) para guardar esse valor por máquina. Pelo mesmo motivo, `material_cost`/`print_time_hours`/`energy_kwh` também são informados manualmente por quem cria o orçamento hoje: o Slicer Engine (Fase 10) ainda é só *stub* (nenhum binário instalado — ver seção 13), então não há como calcular esses números automaticamente a partir de um `SliceResult` real ainda. Quando o Slicer e o catálogo de máquinas existirem, um use case da camada de aplicação pode preencher o mesmo `QuoteInputs` automaticamente — a função `calculate_quote` não muda.
+
+Persistência (`infrastructure/db/models.py::CostProfile`/`Quote`, `infrastructure/db/repositories.py`): `Quote.cost_breakdown_snapshot` guarda o `CostBreakdown` inteiro (`dataclasses.asdict`) no momento do cálculo — testado explicitamente (`test_quote_snapshot_is_unaffected_by_later_profile_changes`) que criar um novo `CostProfile` depois não altera orçamentos já existentes. `Quote.customer_id` é uma coluna solta, sem FK ainda, porque a tabela `customers` não existe até a Fase de Clientes — a constraint chega junto com ela. Endpoints em `interfaces/http/v1/calculator.py`: `POST/GET /organizations/{id}/cost-profiles[/{id}]` (papel mínimo `MANAGER` para criar, `VIEWER` para ler) e `POST/GET /organizations/{id}/quotes[/{id}]` (papel mínimo `OPERATOR` para criar).
+
 ## 15. Filas e Workers
 
 Toda tarefa pesada é assíncrona (contrato de API, seção 18):

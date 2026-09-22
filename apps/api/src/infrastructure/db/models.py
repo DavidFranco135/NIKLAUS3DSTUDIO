@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON, Uuid
 
@@ -218,3 +227,59 @@ class AIJobAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ai_job: Mapped[AIJob] = relationship(back_populates="attempts")
+
+
+class CostProfile(Base):
+    __tablename__ = "cost_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    energy_cost_per_kwh: Mapped[float] = mapped_column(Numeric(12, 4, asdecimal=False))
+    labor_cost_per_hour: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
+    packaging_cost_flat: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
+    waste_percentage: Mapped[float] = mapped_column(Numeric(6, 3, asdecimal=False))
+    fees_percentage: Mapped[float] = mapped_column(Numeric(6, 3, asdecimal=False))
+    profit_margin_percentage: Mapped[float] = mapped_column(Numeric(6, 3, asdecimal=False))
+    tax_percentage: Mapped[float | None] = mapped_column(
+        Numeric(6, 3, asdecimal=False), nullable=True
+    )
+    is_default: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Quote(Base):
+    __tablename__ = "quotes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    # Sem FK para "customers" ainda (tabela não existe até a Fase de Clientes) —
+    # coluna e constraint chegam juntas quando a tabela existir.
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    project_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_versions.id"), nullable=True
+    )
+    cost_profile_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("cost_profiles.id"), nullable=False, index=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id"), nullable=True
+    )
+    cost_breakdown_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    production_cost: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
+    suggested_price: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
+    final_price: Mapped[float | None] = mapped_column(
+        Numeric(12, 2, asdecimal=False), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

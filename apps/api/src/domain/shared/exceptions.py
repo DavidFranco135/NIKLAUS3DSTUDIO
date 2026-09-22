@@ -94,3 +94,19 @@ class GenerationValidationFailedError(DomainError):
 
 class InvalidCADParametersError(DomainError):
     pass
+
+
+class CostProfileNotFoundError(DomainError):
+    pass
+
+
+class QuoteNotFoundError(DomainError):
+    pass
+
+
+class InvalidCostInputsError(DomainError):
+    pass
+
+
+class CannotDeleteDefaultCostProfileError(DomainError):
+    pass

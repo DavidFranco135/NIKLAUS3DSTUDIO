@@ -157,6 +157,67 @@ class AIJobAttemptResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateCostProfileRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    energy_cost_per_kwh: float = Field(ge=0)
+    labor_cost_per_hour: float = Field(ge=0)
+    packaging_cost_flat: float = Field(ge=0)
+    waste_percentage: float = Field(ge=0)
+    fees_percentage: float = Field(ge=0)
+    profit_margin_percentage: float = Field(ge=0)
+    tax_percentage: float | None = Field(default=None, ge=0)
+    is_default: bool = False
+
+
+class CostProfileResponse(BaseModel):
+    id: UUID
+    name: str
+    energy_cost_per_kwh: float
+    labor_cost_per_hour: float
+    packaging_cost_flat: float
+    waste_percentage: float
+    fees_percentage: float
+    profit_margin_percentage: float
+    tax_percentage: float | None
+    is_default: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CreateQuoteRequest(BaseModel):
+    cost_profile_id: UUID
+    project_id: UUID | None = None
+    project_version_id: UUID | None = None
+    customer_id: UUID | None = None
+    material_cost: float = Field(ge=0)
+    print_time_hours: float = Field(ge=0)
+    machine_cost_per_hour: float = Field(ge=0)
+    energy_kwh: float = Field(ge=0)
+    labor_hours: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _project_fields_go_together(self) -> "CreateQuoteRequest":
+        if (self.project_id is None) != (self.project_version_id is None):
+            raise ValueError("Informe project_id e project_version_id juntos, ou nenhum dos dois.")
+        return self
+
+
+class QuoteResponse(BaseModel):
+    id: UUID
+    cost_profile_id: UUID
+    project_version_id: UUID | None
+    customer_id: UUID | None
+    cost_breakdown_snapshot: dict
+    production_cost: float
+    suggested_price: float
+    final_price: float | None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class AIJobResponse(BaseModel):
     id: UUID
     project_id: UUID | None

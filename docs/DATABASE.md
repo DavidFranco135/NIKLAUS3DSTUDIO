@@ -347,7 +347,10 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | suggested_price | NUMERIC NOT NULL | |
 | final_price | NUMERIC NULL | caso negociado |
 | status | TEXT NOT NULL DEFAULT 'draft' | draft / sent / accepted / rejected / expired |
+| created_by | UUID FK → users NULL | quem criou o orçamento — não estava no desenho original, adicionado por consistência com toda outra entidade auditável (`Project.created_by`, `AIJob.requested_by`, ...) |
 | created_at, updated_at | TIMESTAMPTZ | |
+
+*(`cost_profiles` e `quotes` implementadas na Fase 11, junto com `domain/calculator/` — ver ARCHITECTURE.md §14. `customer_id` em `quotes` existe como coluna solta, sem `FOREIGN KEY`, porque `customers` ainda não existe (Fase 13); a constraint chega junto com essa tabela. Todo cálculo é 100% determinístico — nenhum campo aqui é preenchido por IA generativa, só por quem cria o orçamento.)*
 
 ### orders
 
