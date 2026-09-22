@@ -34,6 +34,7 @@ def create_job(
             prompt=payload.prompt,
             image_file_id=payload.image_file_id,
             requested_by=current_user.id,
+            variant_seed=payload.variant_seed,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc

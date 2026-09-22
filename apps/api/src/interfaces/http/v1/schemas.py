@@ -138,6 +138,7 @@ class CreateAIJobRequest(BaseModel):
     prompt: str | None = Field(default=None, max_length=2000)
     image_file_id: UUID | None = None
     project_id: UUID | None = None
+    variant_seed: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def _require_prompt_or_image(self) -> "CreateAIJobRequest":

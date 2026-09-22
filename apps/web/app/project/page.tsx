@@ -9,6 +9,22 @@ import type { AIJob, FileAsset, Project, ProjectVersion, RequestUploadResponse }
 import { AppHeader } from "@/components/AppHeader";
 import { ModelViewer } from "@/components/ModelViewer";
 
+type VariantStatus = "generating" | "done" | "failed";
+
+type VariantResult = {
+  seed: string;
+  status: VariantStatus;
+  job: AIJob | null;
+  previewUrl: string | null;
+  fileKind: string | null;
+  errorMessage: string | null;
+};
+
+function makeSeed(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function ProjectDetailPage() {
   return (
     <Suspense
@@ -40,7 +56,8 @@ function ProjectDetailPageInner() {
   const [isUploading, setIsUploading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiImageFile, setAiImageFile] = useState<File | null>(null);
-  const [aiJob, setAiJob] = useState<AIJob | null>(null);
+  const [variantCount, setVariantCount] = useState(1);
+  const [variants, setVariants] = useState<VariantResult[]>([]);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const orgPath = `/api/v1/organizations/${currentOrganizationId}/projects/${projectId}`;
@@ -153,19 +170,14 @@ function ProjectDetailPageInner() {
     throw new Error("O job de IA demorou demais para concluir.");
   }
 
-  async function handleGenerateWithAI(event: React.FormEvent) {
-    event.preventDefault();
-    if (!accessToken) return;
-    setIsGeneratingAI(true);
-    setError(null);
-    setMessage(null);
-    setAiJob(null);
-    try {
-      let imageFileId: string | null = null;
-      if (aiImageFile) {
-        imageFileId = await uploadAndConfirmFile(aiImageFile, "source_image");
-      }
+  function updateVariant(seed: string, patch: Partial<VariantResult>) {
+    setVariants((current) =>
+      current.map((v) => (v.seed === seed ? { ...v, ...patch } : v))
+    );
+  }
 
+  async function runVariant(seed: string, imageFileId: string | null) {
+    try {
       const created = await apiFetch<AIJob>(
         `/api/v1/organizations/${currentOrganizationId}/ai/jobs`,
         {
@@ -175,6 +187,7 @@ function ProjectDetailPageInner() {
             prompt: aiPrompt || null,
             image_file_id: imageFileId,
             project_id: projectId,
+            variant_seed: seed,
           }),
         }
       );
@@ -182,20 +195,83 @@ function ProjectDetailPageInner() {
         created.status === "COMPLETED" || created.status === "FAILED"
           ? created
           : await pollJobUntilDone(created.id);
-      setAiJob(finished);
-      if (finished.status === "COMPLETED") {
-        setAiPrompt("");
-        setAiImageFile(null);
-        setMessage("Modelo gerado pela IA — nova versão criada.");
-        await loadAll();
-      } else {
-        setError(finished.error_message ?? "A geração por IA falhou.");
+
+      if (finished.status !== "COMPLETED") {
+        updateVariant(seed, {
+          status: "failed",
+          job: finished,
+          errorMessage: finished.error_message ?? "A geração por IA falhou.",
+        });
+        return;
       }
+
+      let previewUrl: string | null = null;
+      let fileKind: string | null = null;
+      if (finished.result_project_version_id && finished.result_file_id) {
+        const files = await apiFetch<FileAsset[]>(
+          `${orgPath}/versions/${finished.result_project_version_id}/files`,
+          { accessToken }
+        );
+        const resultFile = files.find((f) => f.id === finished.result_file_id) ?? null;
+        fileKind = resultFile?.kind ?? null;
+        if (resultFile && resultFile.kind === "model_glb") {
+          const { download_url } = await apiFetch<{ download_url: string }>(
+            `${orgPath}/files/${resultFile.id}/download-url`,
+            { accessToken }
+          );
+          previewUrl = download_url;
+        }
+      }
+      updateVariant(seed, { status: "done", job: finished, previewUrl, fileKind });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar o job de IA.");
+      updateVariant(seed, {
+        status: "failed",
+        errorMessage: err instanceof ApiError ? err.message : "Falha ao criar o job de IA.",
+      });
+    }
+  }
+
+  async function handleGenerateWithAI(event: React.FormEvent) {
+    event.preventDefault();
+    if (!accessToken) return;
+    setIsGeneratingAI(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      let imageFileId: string | null = null;
+      if (aiImageFile) {
+        imageFileId = await uploadAndConfirmFile(aiImageFile, "source_image");
+      }
+
+      const seeds = Array.from({ length: variantCount }, () => makeSeed());
+      setVariants(
+        seeds.map((seed) => ({
+          seed,
+          status: "generating",
+          job: null,
+          previewUrl: null,
+          fileKind: null,
+          errorMessage: null,
+        }))
+      );
+
+      await Promise.all(seeds.map((seed) => runVariant(seed, imageFileId)));
+      setMessage(
+        variantCount > 1
+          ? "Variações geradas — escolha uma para usar no projeto."
+          : "Modelo gerado — confira o preview e use ou baixe."
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao gerar com IA.");
     } finally {
       setIsGeneratingAI(false);
     }
+  }
+
+  async function handleUseVariant(versionId: string) {
+    await handleActivate(versionId);
+    setMessage("Versão aplicada ao projeto.");
   }
 
   async function handleActivate(versionId: string) {
@@ -236,7 +312,7 @@ function ProjectDetailPageInner() {
   return (
     <main className="min-h-screen">
       <AppHeader />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto max-w-5xl space-y-6 p-6">
         <div>
           <h1 className="text-2xl font-semibold">{project.name}</h1>
           {project.description && <p className="text-neutral-400">{project.description}</p>}
@@ -257,61 +333,153 @@ function ProjectDetailPageInner() {
           </p>
         )}
 
-        <form onSubmit={handleGenerateWithAI} className="space-y-3 rounded border border-neutral-800 p-4">
-          <h2 className="text-lg font-medium">Gerar com IA</h2>
-          <p className="text-xs text-neutral-500">
-            Com dimensões exatas (ex: &quot;70x35x4mm&quot;), a geometria é gerada de verdade (CAD
-            paramétrico real). Sem dimensões exatas ou a partir de uma imagem, o resultado ainda
-            é um mock de desenvolvimento (nenhum modelo generativo de IA integrado ainda).
-          </p>
-          <textarea
-            placeholder='Texto (opcional se enviar imagem). Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            rows={2}
-            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2"
-          />
-          <div className="space-y-1">
-            <label className="block text-xs text-neutral-500">
-              Ou gerar a partir de uma imagem (opcional)
-            </label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => setAiImageFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm"
-            />
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-medium">Gerar com IA</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              Com dimensões exatas (ex: &quot;70x35x4mm&quot;), a geometria é gerada de verdade
+              (CAD paramétrico real). Sem dimensões exatas ou a partir de uma imagem, o resultado
+              ainda é um mock de desenvolvimento (nenhum modelo generativo de IA integrado ainda).
+            </p>
           </div>
-          <button
-            type="submit"
-            disabled={isGeneratingAI || (!aiPrompt.trim() && !aiImageFile)}
-            className="rounded bg-purple-600 px-4 py-2 font-medium disabled:opacity-50"
-          >
-            {isGeneratingAI ? "Gerando…" : "Gerar com IA"}
-          </button>
-          {aiJob && (
-            <div className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
-              <p>
-                Tarefa classificada como <strong>{aiJob.task_type}</strong> — status:{" "}
-                <strong>{aiJob.status}</strong>
-              </p>
-              {aiJob.result_metadata?.development_only && (
-                <p className="mt-1 rounded bg-yellow-950 p-2 text-yellow-300">
-                  MOCK DE DESENVOLVIMENTO — não é uma geração 3D real.{" "}
-                  {aiJob.result_metadata.note}
-                </p>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
+            <form onSubmit={handleGenerateWithAI} className="space-y-4">
+              <textarea
+                placeholder='Texto (opcional se enviar imagem). Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+              />
+              <div className="space-y-1">
+                <label className="block text-xs text-neutral-500">
+                  Ou gerar a partir de uma imagem (opcional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setAiImageFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-neutral-500">Quantidade de variações</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setVariantCount(n)}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        variantCount === n
+                          ? "border-purple-500 bg-purple-950 text-purple-200"
+                          : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:border-neutral-600"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={isGeneratingAI || (!aiPrompt.trim() && !aiImageFile)}
+                className="w-full rounded-lg bg-purple-600 px-4 py-2.5 font-medium transition-colors hover:bg-purple-500 disabled:opacity-50"
+              >
+                {isGeneratingAI ? "Gerando…" : "Gerar com IA"}
+              </button>
+            </form>
+
+            <div className="min-h-[220px]">
+              {variants.length === 0 && (
+                <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border border-dashed border-neutral-800 text-sm text-neutral-600">
+                  Os resultados aparecem aqui após gerar.
+                </div>
               )}
-              <ul className="mt-1 list-inside list-disc">
-                {aiJob.attempts.map((attempt) => (
-                  <li key={attempt.attempt_number}>
-                    {attempt.provider_name}: {attempt.status}
-                    {attempt.error_detail ? ` (${attempt.error_detail})` : ""}
-                  </li>
-                ))}
-              </ul>
+              {variants.length > 0 && (
+                <div
+                  className={`grid gap-4 ${
+                    variants.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"
+                  }`}
+                >
+                  {variants.map((variant, index) => (
+                    <div
+                      key={variant.seed}
+                      className="space-y-2 rounded-lg border border-neutral-800 bg-neutral-900/60 p-3"
+                    >
+                      <div className="flex items-center justify-between text-xs text-neutral-500">
+                        <span>Variação {index + 1}</span>
+                        {variant.status === "generating" && (
+                          <span className="text-purple-300">Gerando…</span>
+                        )}
+                        {variant.status === "done" && (
+                          <span className="text-green-400">Concluído</span>
+                        )}
+                        {variant.status === "failed" && (
+                          <span className="text-red-400">Falhou</span>
+                        )}
+                      </div>
+
+                      {variant.status === "generating" && (
+                        <div className="flex h-48 items-center justify-center rounded border border-neutral-800 bg-neutral-950">
+                          <span className="animate-pulse text-sm text-neutral-500">
+                            Processando…
+                          </span>
+                        </div>
+                      )}
+
+                      {variant.status === "failed" && (
+                        <p className="rounded bg-red-950 p-2 text-xs text-red-300">
+                          {variant.errorMessage}
+                        </p>
+                      )}
+
+                      {variant.status === "done" && variant.previewUrl && (
+                        <ModelViewer src={variant.previewUrl} />
+                      )}
+                      {variant.status === "done" && !variant.previewUrl && (
+                        <div className="flex h-48 items-center justify-center rounded border border-neutral-800 bg-neutral-950 px-2 text-center text-xs text-neutral-500">
+                          Sem preview 3D disponível para este formato — use ou baixe para
+                          visualizar.
+                        </div>
+                      )}
+
+                      {variant.status === "done" &&
+                        variant.job?.result_metadata?.development_only && (
+                          <p className="rounded bg-yellow-950 p-2 text-xs text-yellow-300">
+                            MOCK DE DESENVOLVIMENTO — não é uma geração 3D real.{" "}
+                            {variant.job.result_metadata.note}
+                          </p>
+                        )}
+
+                      {variant.status === "done" && variant.job && (
+                        <div className="flex gap-2">
+                          {variant.job.result_project_version_id && (
+                            <button
+                              onClick={() => handleUseVariant(variant.job!.result_project_version_id!)}
+                              className="flex-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium hover:bg-blue-500"
+                            >
+                              Usar esta versão
+                            </button>
+                          )}
+                          {variant.job.result_file_id && (
+                            <button
+                              onClick={() => handleDownload(variant.job!.result_file_id!)}
+                              className="flex-1 rounded border border-neutral-700 px-3 py-1.5 text-xs font-medium hover:border-neutral-500"
+                            >
+                              Baixar
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </form>
+          </div>
+        </div>
 
         <form onSubmit={handleUpload} className="space-y-3 rounded border border-neutral-800 p-4">
           <h2 className="text-lg font-medium">Nova versão</h2>

@@ -35,12 +35,19 @@ ALLOWED_IMAGE_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
 
-def _idempotency_key(*, prompt: str, project_id: UUID | None, image_file_id: UUID | None) -> str:
+def _idempotency_key(
+    *,
+    prompt: str,
+    project_id: UUID | None,
+    image_file_id: UUID | None,
+    variant_seed: str | None,
+) -> str:
     payload = json.dumps(
         {
             "prompt": prompt.strip().lower(),
             "project_id": str(project_id) if project_id else None,
             "image_file_id": str(image_file_id) if image_file_id else None,
+            "variant_seed": variant_seed,
         },
         sort_keys=True,
     )
@@ -77,16 +84,19 @@ def create_ai_job(
     prompt: str | None,
     image_file_id: UUID | None,
     requested_by: UUID,
+    variant_seed: str | None = None,
 ) -> tuple[AIJob, bool]:
     """Returns (job, created). `created=False` means an equivalent job was
 
     already in flight (or done) for this prompt+project(+image) — the
     idempotency key from ARCHITECTURE.md section 15, so re-submitting the
     same request from a flaky client doesn't spawn duplicate work.
+    `variant_seed` opts out of that dedup on purpose, so a client can request
+    several distinct variants of the same prompt in parallel.
     """
     prompt = prompt or ""
     idempotency_key = _idempotency_key(
-        prompt=prompt, project_id=project_id, image_file_id=image_file_id
+        prompt=prompt, project_id=project_id, image_file_id=image_file_id, variant_seed=variant_seed
     )
     job_repo = AIJobRepository(db)
 
