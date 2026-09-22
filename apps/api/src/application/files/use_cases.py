@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.billing.use_cases import KEY_MAX_STORAGE_MB, enforce_numeric_limit
 from src.domain.shared.exceptions import (
     FileAssetNotFoundError,
     FileNotUploadedError,
@@ -75,6 +76,19 @@ def confirm_upload(
     stat = storage.stat(key=file_asset.storage_key)
     if stat is None:
         raise FileNotUploadedError(file_asset.storage_key)
+
+    # O arquivo já foi enviado ao storage neste ponto (URL pré-assinada, sem
+    # como bloquear antes) — o limite é aplicado aqui, antes de marcar como
+    # "uploaded": se ultrapassar a cota, o arquivo fica "pending" para
+    # sempre, nunca soma no total (`sum_size_bytes_for_org` só conta
+    # status="uploaded"), e nunca fica utilizável pela plataforma.
+    projected_bytes = repo.sum_size_bytes_for_org(organization_id) + stat.size_bytes
+    enforce_numeric_limit(
+        db,
+        organization_id=organization_id,
+        key=KEY_MAX_STORAGE_MB,
+        current_usage=projected_bytes / (1024 * 1024),
+    )
 
     repo.mark_uploaded(
         file_asset, size_bytes=stat.size_bytes, mime_type=stat.content_type or file_asset.mime_type

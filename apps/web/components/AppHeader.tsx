@@ -23,6 +23,9 @@ export function AppHeader() {
       </Link>
       <div className="flex items-center gap-4 text-sm text-neutral-400">
         {currentOrg && <span>{currentOrg.name}</span>}
+        <Link href="/billing" className="text-blue-400 hover:underline">
+          Faturamento
+        </Link>
         {user && <span>{user.email}</span>}
         <button onClick={handleLogout} className="text-blue-400 hover:underline">
           Sair

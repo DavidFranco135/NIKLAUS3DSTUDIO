@@ -19,14 +19,35 @@ def fake_storage() -> FakeStorageProvider:
 
 
 @pytest.fixture()
-def client(fake_storage: FakeStorageProvider) -> TestClient:
+def db_engine():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
-    TestSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    return engine
+
+
+@pytest.fixture()
+def db_session(db_engine):
+    """Raw session on the same in-memory engine `client` uses — for tests
+
+    that need to set up fixtures no HTTP endpoint exposes (e.g. a custom
+    billing plan; there's deliberately no "create plan" endpoint, plan
+    management isn't an API concern in Fase 18A).
+    """
+    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    session = session_factory()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture()
+def client(fake_storage: FakeStorageProvider, db_engine) -> TestClient:
+    TestSessionLocal = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
 
     def override_get_db():
         db = TestSessionLocal()

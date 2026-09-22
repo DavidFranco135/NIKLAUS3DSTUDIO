@@ -437,6 +437,62 @@ Regra: `receita`, `custo` e `despesa` nunca se misturam na mesma linha — sempr
 | ip_address | INET NULL | |
 | created_at | TIMESTAMPTZ | |
 
+## Billing (Fase 18A — infraestrutura interna, sem pagamento real)
+
+Não fazia parte do desenho original deste documento — adicionado inteiramente na Fase 18A. Ver ARCHITECTURE.md, nota "Status na Fase 18A", para o racional completo (por que `plan_entitlements` é genérica, por que `subscriptions` é uma linha por organização e não uma por período, por que nenhum `StripeBillingProvider` existe ainda).
+
+### plans
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | UUID PK | |
+| code | TEXT NOT NULL UNIQUE | ex. `dev_unlimited` — plano semente de desenvolvimento, **não é comercial** |
+| name | TEXT NOT NULL | |
+| is_active | BOOLEAN NOT NULL DEFAULT true | plano pode ser aposentado sem apagar assinaturas históricas que o referenciam |
+| trial_period_days | INTEGER NULL | dias de trial ao nascer uma assinatura neste plano; `NULL` = sem trial |
+| created_at, updated_at | TIMESTAMPTZ | |
+
+### plan_entitlements
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | UUID PK | |
+| plan_id | UUID FK → plans NOT NULL | |
+| key | TEXT NOT NULL | ex. `max_projects`, `feature.ai_text_to_3d` — `UNIQUE(plan_id, key)` |
+| limit_type | TEXT NOT NULL | `boolean` / `numeric` / `unlimited` |
+| bool_value | BOOLEAN NULL | usado quando `limit_type='boolean'` |
+| numeric_value | NUMERIC NULL | usado quando `limit_type='numeric'`; `NULL` com `limit_type='unlimited'` significa sem teto |
+
+### subscriptions
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | UUID PK | |
+| organization_id | UUID FK → organizations NOT NULL UNIQUE | uma assinatura "atual" por organização — mudança de plano é `UPDATE`, não linha nova |
+| plan_id | UUID FK → plans NOT NULL | |
+| status | TEXT NOT NULL | `trialing` / `active` / `past_due` / `canceled` / `incomplete` / `unpaid` — vocabulário do Stripe de propósito |
+| current_period_start, current_period_end | TIMESTAMPTZ NOT NULL | |
+| trial_start, trial_end | TIMESTAMPTZ NULL | |
+| cancel_at_period_end | BOOLEAN NOT NULL DEFAULT false | |
+| canceled_at | TIMESTAMPTZ NULL | |
+| external_provider | TEXT NOT NULL DEFAULT 'mock_billing' | nome do `BillingProvider` que gerencia esta assinatura hoje |
+| external_subscription_id, external_customer_id | TEXT NULL | ids do provider real (Stripe), `NULL` enquanto for mock |
+| created_at, updated_at | TIMESTAMPTZ | |
+
+### billing_events
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | UUID PK | |
+| provider | TEXT NOT NULL | `mock_billing` / `stripe` (futuro) |
+| external_event_id | TEXT NOT NULL | `UNIQUE(provider, external_event_id)` — é a idempotência: reentrega do mesmo evento nunca reprocessa |
+| event_type | TEXT NOT NULL | ex. `subscription.updated`, `subscription.canceled` |
+| organization_id | UUID FK → organizations NULL | resolvido a partir do payload do evento, não da URL |
+| payload | JSONB NOT NULL | corpo bruto, para auditoria/replay |
+| status | TEXT NOT NULL DEFAULT 'received' | `received` / `processed` / `failed` |
+| error_message | TEXT NULL | |
+| received_at, processed_at | TIMESTAMPTZ | |
+
 ## Índices e constraints obrigatórios (checklist de revisão de toda migration)
 
 - Toda FK para `organizations` tem índice.

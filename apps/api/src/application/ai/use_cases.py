@@ -4,6 +4,11 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.billing.use_cases import (
+    KEY_MAX_AI_JOBS_PER_PERIOD,
+    enforce_numeric_limit,
+    get_subscription,
+)
 from src.domain.ai.classifier import classify_task
 from src.domain.ai.spec import TaskType
 from src.domain.shared.exceptions import (
@@ -102,6 +107,15 @@ def create_ai_job(
         db.commit()
         job_id = failed_job.id
     else:
+        subscription = get_subscription(db, organization_id=organization_id)
+        current_count = job_repo.count_since(organization_id, subscription.current_period_start)
+        enforce_numeric_limit(
+            db,
+            organization_id=organization_id,
+            key=KEY_MAX_AI_JOBS_PER_PERIOD,
+            current_usage=current_count,
+        )
+
         spec = get_llm_provider().extract_specification(prompt)
         task_type = TaskType.IMAGE_TO_3D if image_file_id is not None else classify_task(spec)
 

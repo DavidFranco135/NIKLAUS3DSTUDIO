@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from src.interfaces.http.v1.ai import router as ai_router
 from src.interfaces.http.v1.auth import router as auth_router
+from src.interfaces.http.v1.billing import global_router as billing_global_router
+from src.interfaces.http.v1.billing import router as billing_router
 from src.interfaces.http.v1.calculator import router as calculator_router
 from src.interfaces.http.v1.customers import router as customers_router
 from src.interfaces.http.v1.dashboard import router as dashboard_router
@@ -30,3 +32,5 @@ router.include_router(orders_router)
 router.include_router(finance_router)
 router.include_router(dashboard_router)
 router.include_router(machines_router)
+router.include_router(billing_router)
+router.include_router(billing_global_router)

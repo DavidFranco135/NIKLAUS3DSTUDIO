@@ -491,3 +491,43 @@ class MachineResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PlanResponse(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    is_active: bool
+    trial_period_days: int | None
+
+    model_config = {"from_attributes": True}
+
+
+class SubscriptionResponse(BaseModel):
+    id: UUID
+    plan: PlanResponse
+    status: str
+    current_period_start: datetime
+    current_period_end: datetime
+    trial_start: datetime | None
+    trial_end: datetime | None
+    cancel_at_period_end: bool
+    canceled_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class CancelSubscriptionRequest(BaseModel):
+    at_period_end: bool = True
+
+
+class ChangePlanRequest(BaseModel):
+    plan_code: str = Field(min_length=2, max_length=50)
+
+
+class UsageItemResponse(BaseModel):
+    key: str
+    limit_type: str
+    current_usage: float | None
+    limit: float | None
+    enabled: bool | None

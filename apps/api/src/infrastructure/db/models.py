@@ -496,3 +496,89 @@ class Machine(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    trial_period_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    entitlements: Mapped[list["PlanEntitlement"]] = relationship(back_populates="plan")
+
+
+class PlanEntitlement(Base):
+    __tablename__ = "plan_entitlements"
+    __table_args__ = (UniqueConstraint("plan_id", "key", name="uq_plan_entitlements_plan_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("plans.id"), nullable=False, index=True
+    )
+    key: Mapped[str] = mapped_column(String(100), nullable=False)
+    limit_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    bool_value: Mapped[bool | None] = mapped_column(nullable=True)
+    numeric_value: Mapped[float | None] = mapped_column(
+        Numeric(14, 2, asdecimal=False), nullable=True
+    )
+
+    plan: Mapped[Plan] = relationship(back_populates="entitlements")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, unique=True
+    )
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("plans.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    trial_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(default=False)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    external_provider: Mapped[str] = mapped_column(String(20), nullable=False, default="mock")
+    external_subscription_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    external_customer_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    plan: Mapped[Plan] = relationship()
+
+
+class BillingEvent(Base):
+    __tablename__ = "billing_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "external_event_id", name="uq_billing_events_provider_external_id"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    external_event_id: Mapped[str] = mapped_column(String, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=True, index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="received")
+    error_message: Mapped[str | None] = mapped_column(String, nullable=True)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

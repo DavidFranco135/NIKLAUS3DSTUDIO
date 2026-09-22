@@ -18,6 +18,11 @@ function extractDetailMessage(body: unknown, fallback: string): string {
         .map((item) => (typeof item === "object" && item && "msg" in item ? String(item.msg) : String(item)))
         .join("; ");
     }
+    // Corpo estruturado do LimitExceededError (402) — {message, limit_key,
+    // current_usage, limit} — ver src/interfaces/http/errors.py.
+    if (detail && typeof detail === "object" && "message" in detail) {
+      return String((detail as { message: unknown }).message);
+    }
   }
   return fallback;
 }

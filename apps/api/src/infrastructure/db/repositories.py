@@ -1,12 +1,13 @@
 from datetime import UTC, date, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.infrastructure.db.models import (
     AIJob,
     AIJobAttempt,
+    BillingEvent,
     CostProfile,
     Customer,
     FileAsset,
@@ -19,10 +20,13 @@ from src.infrastructure.db.models import (
     OrderItem,
     Organization,
     OrgMember,
+    Plan,
+    PlanEntitlement,
     Project,
     ProjectVersion,
     Quote,
     RefreshToken,
+    Subscription,
     User,
 )
 
@@ -268,6 +272,17 @@ class FileAssetRepository:
             )
         )
 
+    def sum_size_bytes_for_org(self, organization_id: UUID) -> int:
+        return (
+            self.session.scalar(
+                select(func.sum(FileAsset.size_bytes)).where(
+                    FileAsset.organization_id == organization_id,
+                    FileAsset.status == "uploaded",
+                )
+            )
+            or 0
+        )
+
     def list_for_version(self, project_version_id: UUID) -> list[FileAsset]:
         return list(
             self.session.scalars(
@@ -390,6 +405,23 @@ class AIJobRepository:
         if project_id is not None:
             stmt = stmt.where(AIJob.project_id == project_id)
         return list(self.session.scalars(stmt.order_by(AIJob.created_at.desc())))
+
+    def count_since(self, organization_id: UUID, since: datetime) -> int:
+        """Conta toda linha criada no período, inclusive `FAILED` — o
+
+        processamento (e, no futuro, o custo de GPU/provider real) já foi
+        gasto mesmo quando o resultado falha; um retry reaproveita a mesma
+        linha (`reset_for_retry`) em vez de criar outra, então não conta
+        em dobro.
+        """
+        return (
+            self.session.scalar(
+                select(func.count(AIJob.id)).where(
+                    AIJob.organization_id == organization_id, AIJob.created_at >= since
+                )
+            )
+            or 0
+        )
 
     def create(
         self,
@@ -1017,3 +1049,155 @@ class MachineRepository:
         self.session.add(machine)
         self.session.flush()
         return machine
+
+
+class PlanRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, plan_id: UUID) -> Plan | None:
+        return self.session.get(Plan, plan_id)
+
+    def get_by_code(self, code: str) -> Plan | None:
+        return self.session.scalar(select(Plan).where(Plan.code == code))
+
+    def list_active(self) -> list[Plan]:
+        return list(
+            self.session.scalars(
+                select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.created_at)
+            )
+        )
+
+
+class PlanEntitlementRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_for_plan(self, plan_id: UUID, key: str) -> PlanEntitlement | None:
+        return self.session.scalar(
+            select(PlanEntitlement).where(
+                PlanEntitlement.plan_id == plan_id, PlanEntitlement.key == key
+            )
+        )
+
+    def list_for_plan(self, plan_id: UUID) -> list[PlanEntitlement]:
+        return list(
+            self.session.scalars(
+                select(PlanEntitlement).where(PlanEntitlement.plan_id == plan_id)
+            )
+        )
+
+
+class SubscriptionRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, subscription_id: UUID) -> Subscription | None:
+        return self.session.get(Subscription, subscription_id)
+
+    def get_by_organization(self, organization_id: UUID) -> Subscription | None:
+        return self.session.scalar(
+            select(Subscription).where(Subscription.organization_id == organization_id)
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        plan_id: UUID,
+        status: str,
+        current_period_start: datetime,
+        current_period_end: datetime,
+        trial_start: datetime | None,
+        trial_end: datetime | None,
+        external_provider: str,
+        external_subscription_id: str | None,
+        external_customer_id: str | None,
+    ) -> Subscription:
+        subscription = Subscription(
+            organization_id=organization_id,
+            plan_id=plan_id,
+            status=status,
+            current_period_start=current_period_start,
+            current_period_end=current_period_end,
+            trial_start=trial_start,
+            trial_end=trial_end,
+            external_provider=external_provider,
+            external_subscription_id=external_subscription_id,
+            external_customer_id=external_customer_id,
+        )
+        self.session.add(subscription)
+        self.session.flush()
+        return subscription
+
+    def update_status(self, subscription: Subscription, *, status: str) -> None:
+        subscription.status = status
+        self.session.flush()
+
+    def update_plan(self, subscription: Subscription, *, plan_id: UUID) -> None:
+        subscription.plan_id = plan_id
+        self.session.flush()
+
+    def mark_cancel_at_period_end(self, subscription: Subscription, *, value: bool) -> None:
+        subscription.cancel_at_period_end = value
+        self.session.flush()
+
+    def mark_canceled_now(self, subscription: Subscription) -> None:
+        subscription.status = "canceled"
+        subscription.canceled_at = datetime.now(UTC)
+        self.session.flush()
+
+
+class BillingEventRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_by_provider_and_external_id(
+        self, provider: str, external_event_id: str
+    ) -> BillingEvent | None:
+        return self.session.scalar(
+            select(BillingEvent).where(
+                BillingEvent.provider == provider,
+                BillingEvent.external_event_id == external_event_id,
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[BillingEvent]:
+        return list(
+            self.session.scalars(
+                select(BillingEvent)
+                .where(BillingEvent.organization_id == organization_id)
+                .order_by(BillingEvent.received_at.desc())
+            )
+        )
+
+    def create(
+        self,
+        *,
+        provider: str,
+        external_event_id: str,
+        event_type: str,
+        organization_id: UUID | None,
+        payload: dict,
+    ) -> BillingEvent:
+        event = BillingEvent(
+            provider=provider,
+            external_event_id=external_event_id,
+            event_type=event_type,
+            organization_id=organization_id,
+            payload=payload,
+        )
+        self.session.add(event)
+        self.session.flush()
+        return event
+
+    def mark_processed(self, event: BillingEvent) -> None:
+        event.status = "processed"
+        event.processed_at = datetime.now(UTC)
+        self.session.flush()
+
+    def mark_failed(self, event: BillingEvent, *, error_message: str) -> None:
+        event.status = "failed"
+        event.error_message = error_message
+        event.processed_at = datetime.now(UTC)
+        self.session.flush()

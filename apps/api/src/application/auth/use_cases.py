@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.billing.use_cases import create_default_subscription
 from src.application.organizations.slug import unique_org_slug
 from src.domain.auth.dto import TokenPair
 from src.domain.auth.roles import Role
@@ -52,6 +53,7 @@ def register(
 
     tokens = _issue_token_pair(db, user)
     db.commit()
+    create_default_subscription(db, organization_id=organization.id)
     return user, organization, tokens
 
 

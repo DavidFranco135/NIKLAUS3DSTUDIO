@@ -16,17 +16,23 @@ from src.domain.shared.exceptions import (
     InvalidImageInputError,
     InvalidInventoryMovementError,
     InvalidOrderTransitionError,
+    InvalidSubscriptionTransitionError,
+    InvalidWebhookPayloadError,
+    InvalidWebhookSignatureError,
     InventoryItemNotFoundError,
+    LimitExceededError,
     MachineNotFoundError,
     MaterialNotFoundError,
     OrderNotFoundError,
     OrganizationNotFoundError,
+    PlanNotFoundError,
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
     ProviderNotConfiguredError,
     QuoteNotFoundError,
     RefreshTokenInvalidError,
     StorageUnavailableError,
+    SubscriptionNotFoundError,
     UnsupportedFileKindError,
     UserAlreadyMemberError,
     UserNotFoundError,
@@ -62,9 +68,28 @@ _STATUS_BY_ERROR = {
     FinancialTransactionNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidFinancialTransactionTypeError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     MachineNotFoundError: status.HTTP_404_NOT_FOUND,
+    PlanNotFoundError: status.HTTP_404_NOT_FOUND,
+    SubscriptionNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidSubscriptionTransitionError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    LimitExceededError: status.HTTP_402_PAYMENT_REQUIRED,
+    InvalidWebhookSignatureError: status.HTTP_400_BAD_REQUEST,
+    InvalidWebhookPayloadError: status.HTTP_400_BAD_REQUEST,
 }
 
 
 def as_http_exception(exc: Exception) -> HTTPException:
     status_code = _STATUS_BY_ERROR.get(type(exc), status.HTTP_400_BAD_REQUEST)
+    if isinstance(exc, LimitExceededError):
+        # Corpo estruturado, não só uma mensagem — o frontend precisa saber
+        # qual chave/quanto/limite para renderizar "upgrade seu plano" sem
+        # ter que fazer parsing de texto livre.
+        return HTTPException(
+            status_code=status_code,
+            detail={
+                "message": str(exc),
+                "limit_key": exc.key,
+                "current_usage": exc.current_usage,
+                "limit": exc.limit,
+            },
+        )
     return HTTPException(status_code=status_code, detail=str(exc) or type(exc).__name__)

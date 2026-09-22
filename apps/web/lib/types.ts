@@ -69,6 +69,34 @@ export type AIJobAttempt = {
   duration_ms: number | null;
 };
 
+export type Plan = {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  trial_period_days: number | null;
+};
+
+export type Subscription = {
+  id: string;
+  plan: Plan;
+  status: string;
+  current_period_start: string;
+  current_period_end: string;
+  trial_start: string | null;
+  trial_end: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
+};
+
+export type UsageItem = {
+  key: string;
+  limit_type: "boolean" | "numeric" | "unlimited";
+  current_usage: number | null;
+  limit: number | null;
+  enabled: boolean | null;
+};
+
 export type AIJob = {
   id: string;
   project_id: string | null;

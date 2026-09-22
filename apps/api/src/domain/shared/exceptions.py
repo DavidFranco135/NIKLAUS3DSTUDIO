@@ -150,3 +150,35 @@ class InvalidFinancialTransactionTypeError(DomainError):
 
 class MachineNotFoundError(DomainError):
     pass
+
+
+class PlanNotFoundError(DomainError):
+    pass
+
+
+class SubscriptionNotFoundError(DomainError):
+    pass
+
+
+class InvalidSubscriptionTransitionError(DomainError):
+    pass
+
+
+class LimitExceededError(DomainError):
+    def __init__(self, *, key: str, current_usage: float, limit: float, message: str) -> None:
+        super().__init__(message)
+        self.key = key
+        self.current_usage = current_usage
+        self.limit = limit
+
+
+class InvalidEntitlementError(DomainError):
+    pass
+
+
+class InvalidWebhookSignatureError(DomainError):
+    pass
+
+
+class InvalidWebhookPayloadError(DomainError):
+    pass

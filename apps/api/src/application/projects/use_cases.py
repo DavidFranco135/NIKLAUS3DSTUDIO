@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.billing.use_cases import KEY_MAX_PROJECTS, enforce_numeric_limit
 from src.application.customers.use_cases import get_customer
 from src.domain.shared.exceptions import (
     FileAssetNotFoundError,
@@ -28,6 +29,12 @@ def create_project(
 ) -> Project:
     if customer_id is not None:
         get_customer(db, organization_id=organization_id, customer_id=customer_id)
+
+    current_count = len(ProjectRepository(db).list_for_org(organization_id))
+    enforce_numeric_limit(
+        db, organization_id=organization_id, key=KEY_MAX_PROJECTS, current_usage=current_count
+    )
+
     project = ProjectRepository(db).create(
         organization_id=organization_id,
         name=name,

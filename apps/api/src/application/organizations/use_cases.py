@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.billing.use_cases import create_default_subscription
 from src.application.organizations.slug import unique_org_slug
 from src.domain.auth.roles import Role
 from src.domain.shared.exceptions import (
@@ -24,6 +25,7 @@ def create_organization(db: Session, *, owner_user_id: UUID, name: str) -> Organ
         organization_id=organization.id, user_id=owner_user_id, role=Role.OWNER.value
     )
     db.commit()
+    create_default_subscription(db, organization_id=organization.id)
     return organization
 
 
