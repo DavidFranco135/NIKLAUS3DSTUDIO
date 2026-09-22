@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from src.domain.ai.spec import StructuredSpecification
+from src.domain.slicing.profiles import MaterialProfile, PrinterProfile
+from src.domain.slicing.report import SliceResult
 
 
 @dataclass(frozen=True)
@@ -102,6 +104,19 @@ class TextureResult:
 
 class TextureProvider(AIProvider, Protocol):
     def generate_texture(self, mesh: MeshRef, spec: TextureSpec) -> TextureResult: ...
+
+
+class SlicerProvider(AIProvider, Protocol):
+    """Not an AI model — a deterministic CLI slicer (PrusaSlicer/OrcaSlicer)
+
+    wrapped behind the same provider convention (`name` + `health_check`)
+    as every other pluggable engine in this module, so the orchestrator-side
+    fallback/registry machinery works identically for it.
+    """
+
+    def slice(
+        self, mesh: MeshRef, printer: PrinterProfile, material: MaterialProfile
+    ) -> SliceResult: ...
 
 
 class LLMProvider(Protocol):

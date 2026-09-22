@@ -591,6 +591,13 @@ MeshRef + PrinterProfile + MaterialProfile → SlicerProvider.slice()
 
 Integrações previstas (nesta ordem de prioridade): PrusaSlicer CLI, OrcaSlicer CLI, Cura Engine. Cada integração é um adapter isolado; o restante do sistema consome apenas `SliceResult`.
 
+**Status na Fase 10:** só a abstração + DTOs + *stubs* foram implementados — **nenhum binário de slicer foi instalado, baixado ou executado nesta máquina**, e nenhum adapter real existe ainda. Isso foi uma decisão explícita, diferente das Fases 7-9 (CAD/mesh/printability, todas puramente Python/pip, sem binário externo): PrusaSlicer e OrcaSlicer são AGPL-3.0, que tem cláusula de "uso via rede" — expor fatiamento como parte de um SaaS pode gerar obrigação de disponibilizar código-fonte aos usuários, algo que precisa de confirmação jurídica antes de instalar/executar qualquer um dos dois (ver `AI-LICENSES.md`, que já sinalizava esse risco desde antes da Fase 10).
+
+- `domain/slicing/profiles.py` — `PrinterProfile` (nome, tamanho de mesa, diâmetro de bico, altura máx.) e `MaterialProfile` (nome, diâmetro de filamento, densidade, custo/kg): objetos de valor puros, **não** as entidades de negócio `Printer`/`Material` persistidas em banco (essas vêm de uma fase futura de Estoque/Impressoras).
+- `domain/slicing/report.py` — `SliceResult` (tempo estimado, comprimento/peso de filamento, número de camadas, uso de suporte, bytes do G-code, metadata). Deliberadamente **sem** um campo de custo estimado, diferente do esboço original da seção 9 — calcular preço é responsabilidade da Fase 11 (Calculadora), que vai combinar `SliceResult.filament_weight_g` com `MaterialProfile.cost_per_kg` e outros custos (depreciação de máquina, mão de obra); duplicar essa conta dentro do slicer misturaria as duas responsabilidades.
+- `SlicerProvider` (protocolo) mora em `domain/ai/ports.py`, ao lado de `CADProvider`/`MeshRepairProvider` — mesma convenção `name` + `health_check()`, embora um slicer não seja um modelo de IA (é software determinístico); reaproveitar o protocolo mantém o mesmo mecanismo de registry/fallback para todo provider plugável, independente da natureza.
+- `infrastructure/slicers/prusaslicer/adapter.py` e `infrastructure/slicers/orcaslicer/adapter.py` — `PrusaSlicerCLIProvider`/`OrcaSlicerCLIProvider` implementam a interface real de `SlicerProvider`, mas `slice()` sempre levanta `ProviderNotConfiguredError` (mesmo padrão dos stubs de IA generativa da Fase 5, adaptado: aqui o motivo é binário não instalado + licença não confirmada, não GPU). `infrastructure/slicers/registry.py::get_slicer_providers()` expõe os dois, em ordem de prioridade — ainda não é chamado por nenhum endpoint/job, já que não há providers funcionais para uma fila `slicing` de verdade consumir.
+
 ## 14. Calculadora de custos
 
 100% determinística — a IA pode alimentar dados de entrada (ex.: extrair "PLA branco" de uma frase), mas nunca executa o cálculo.
@@ -635,7 +642,7 @@ Filas separadas por natureza de carga (permite escalar workers independentemente
 | `ai` (`ai.cad` + `ai.generate`, roteadas pela mesma fila por ora) | `worker-ai` | Não com os mocks atuais | **Implementada (Fase 4, providers mock)** |
 | `mesh.process` (reparo, otimização, análise) | Mesh Worker | Não | **Lógica implementada (Fase 8)**, mas executada inline dentro do mesmo job/worker `ai` (via `run_quality_pipeline` no passo `VALIDATING`) — fila dedicada ainda não existe |
 | `printability.analyze` | Mesh Worker | Não | **Lógica implementada (Fase 9)**, mesma observação acima (`analyze_printability` roda inline, logo após o passo anterior, no mesmo worker `ai`) |
-| `slicing` | Slicing Worker | Não | Futuro (Fase 10) |
+| `slicing` | Slicing Worker | Não | **Abstração + stubs implementados (Fase 10)**, nenhum adapter funcional ainda (binário AGPL não instalado, licença não confirmada) — fila real só faz sentido quando houver um provider de verdade para consumi-la |
 
 Retry: backoff exponencial, máximo configurável por tipo de job, jobs idempotentes (chave de idempotência = hash da spec + input), dead-letter queue para falhas persistentes com alerta.
 
