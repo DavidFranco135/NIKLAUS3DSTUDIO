@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from src.infrastructure.db.models import (
     CostProfile,
     Customer,
     FileAsset,
+    FinancialTransaction,
     InventoryItem,
     InventoryMovement,
     Material,
@@ -896,3 +897,67 @@ class OrderItemRepository:
         self.session.add(item)
         self.session.flush()
         return item
+
+
+class FinancialTransactionRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, transaction_id: UUID) -> FinancialTransaction | None:
+        return self.session.scalar(
+            select(FinancialTransaction).where(
+                FinancialTransaction.id == transaction_id,
+                FinancialTransaction.organization_id == organization_id,
+            )
+        )
+
+    def list_for_org(
+        self,
+        organization_id: UUID,
+        *,
+        type: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[FinancialTransaction]:
+        stmt = select(FinancialTransaction).where(
+            FinancialTransaction.organization_id == organization_id
+        )
+        if type is not None:
+            stmt = stmt.where(FinancialTransaction.type == type)
+        if start_date is not None:
+            stmt = stmt.where(FinancialTransaction.created_at >= start_date)
+        if end_date is not None:
+            stmt = stmt.where(FinancialTransaction.created_at <= end_date)
+        return list(self.session.scalars(stmt.order_by(FinancialTransaction.created_at.desc())))
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        type: str,
+        category: str,
+        cost_center: str | None,
+        amount: float,
+        reference_order_id: UUID | None,
+        due_date: date | None,
+        paid_at: datetime | None,
+        created_by: UUID | None,
+    ) -> FinancialTransaction:
+        transaction = FinancialTransaction(
+            organization_id=organization_id,
+            type=type,
+            category=category,
+            cost_center=cost_center,
+            amount=amount,
+            reference_order_id=reference_order_id,
+            due_date=due_date,
+            paid_at=paid_at,
+            created_by=created_by,
+        )
+        self.session.add(transaction)
+        self.session.flush()
+        return transaction
+
+    def mark_paid(self, transaction: FinancialTransaction) -> None:
+        transaction.paid_at = datetime.now(UTC)
+        self.session.flush()

@@ -8,9 +8,11 @@ from src.domain.shared.exceptions import (
     EmailAlreadyRegisteredError,
     FileAssetNotFoundError,
     FileNotUploadedError,
+    FinancialTransactionNotFoundError,
     InsufficientStockError,
     InvalidCostInputsError,
     InvalidCredentialsError,
+    InvalidFinancialTransactionTypeError,
     InvalidImageInputError,
     InvalidInventoryMovementError,
     InvalidOrderTransitionError,
@@ -56,6 +58,8 @@ _STATUS_BY_ERROR = {
     CustomerNotFoundError: status.HTTP_404_NOT_FOUND,
     OrderNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidOrderTransitionError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    FinancialTransactionNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidFinancialTransactionTypeError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 

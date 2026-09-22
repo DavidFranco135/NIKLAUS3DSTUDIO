@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
@@ -400,3 +400,36 @@ class AIJobResponse(BaseModel):
     attempts: list[AIJobAttemptResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
+
+class CreateFinancialTransactionRequest(BaseModel):
+    type: str = Field(pattern="^(receita|custo|despesa)$")
+    category: str = Field(min_length=2, max_length=50)
+    cost_center: str | None = Field(default=None, max_length=100)
+    amount: float = Field(gt=0)
+    reference_order_id: UUID | None = None
+    due_date: date | None = None
+    mark_as_paid: bool = False
+
+
+class FinancialTransactionResponse(BaseModel):
+    id: UUID
+    type: str
+    category: str
+    cost_center: str | None
+    amount: float
+    reference_order_id: UUID | None
+    due_date: date | None
+    paid_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FinancialSummaryResponse(BaseModel):
+    total_revenue: float
+    total_cost: float
+    total_expense: float
+    profit: float
+    pending_receivables: float
+    pending_payables: float

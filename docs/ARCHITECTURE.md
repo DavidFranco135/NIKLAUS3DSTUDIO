@@ -766,6 +766,12 @@ Como planejado desde a Fase 3/11 (ver notas "Implementada na Fase 3" e "Fase 11"
 - Endpoints em `interfaces/http/v1/orders.py`: `POST/GET /organizations/{id}/orders[/{id}]`, `POST .../orders/{id}/transition`, `POST/GET .../orders/{id}/items` (`OPERATOR` para criar pedido/item/transicionar, `VIEWER` para ler).
 - `GET /organizations/{id}/customers/{id}/history` (Fase 13) ganhou a chave `orders`.
 
+**Status na Fase 15 (Financeiro):** implementada — tabela `financial_transactions` (DATABASE.md), com `domain/financial/summary.py` (puro, sem I/O):
+- `compute_summary` aplica a regra explícita do desenho original ao pé da letra: **lucro = Σreceita − Σcusto − Σdespesa**, cada tipo somado isoladamente, nunca misturado na mesma conta. `validate_transaction_type` rejeita qualquer valor fora de `receita`/`custo`/`despesa` antes de somar (`InvalidFinancialTransactionTypeError`).
+- `pending_receivables`/`pending_payables` — decisão de interpretação explícita para "fluxo de caixa" (não estava detalhado no desenho original): uma transação sem `paid_at` conta como pendente; `receita` pendente é "a receber", `custo`/`despesa` pendentes somam juntos em "a pagar" (dinheiro que ainda vai sair, seja para fornecedor ou despesa — o esquema de `financial_transactions` não distingue os dois lados de saída, só o lado de entrada).
+- **Integração automática com Pedidos (Fase 14):** `application/orders/use_cases.py::transition_order_status` agora chama `application/financial/use_cases.py::record_order_paid` quando a nova transição é `paid` — cria uma `financial_transaction` do tipo `receita`, categoria `"pedido"`, valor igual a `order.total_amount`, já paga (`paid_at` no momento da transição), vinculada via `reference_order_id`. É a razão de ser do `reference_order_id` FK que a Fase 14 deixou pronto. Isso é o único lugar do sistema que cria uma transação financeira automaticamente — todo o resto (`despesa`, `custo`, `receita` fora do fluxo de pedido) é lançado manualmente via `POST /finance/transactions`.
+- Endpoints em `interfaces/http/v1/finance.py`: `POST/GET /organizations/{id}/finance/transactions[/{id}]`, `POST .../transactions/{id}/mark-paid`, `GET /organizations/{id}/finance/summary` (com filtro opcional `start_date`/`end_date` por `created_at`). Papel mínimo `MANAGER` para lançar/marcar transação — mais restrito que `orders`/`inventory` (`OPERATOR`), decisão consistente com a tabela de papéis da seção 7 ("`MANAGER` opera... financeiro"); `VIEWER` para ler/consultar o resumo.
+
 ## 24. Riscos técnicos
 
 | Risco | Impacto | Mitigação |

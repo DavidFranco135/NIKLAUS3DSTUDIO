@@ -138,3 +138,11 @@ class OrderNotFoundError(DomainError):
 
 class InvalidOrderTransitionError(DomainError):
     pass
+
+
+class FinancialTransactionNotFoundError(DomainError):
+    pass
+
+
+class InvalidFinancialTransactionTypeError(DomainError):
+    pass

@@ -80,11 +80,16 @@ def transition_order_status(
     organization_id: UUID,
     order_id: UUID,
     payload: TransitionOrderStatusRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OrderResponse:
     try:
         order = order_use_cases.transition_order_status(
-            db, organization_id=organization_id, order_id=order_id, new_status=payload.status
+            db,
+            organization_id=organization_id,
+            order_id=order_id,
+            new_status=payload.status,
+            triggered_by=current_user.id,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc

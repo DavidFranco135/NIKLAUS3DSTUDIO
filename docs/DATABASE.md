@@ -407,6 +407,8 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 
 Regra: `receita`, `custo` e `despesa` nunca se misturam na mesma linha — sempre discriminados por `type`, permitindo relatório de lucro = Σreceita − Σcusto − Σdespesa sem lógica condicional escondida.
 
+*(Implementada na Fase 15, junto com `domain/financial/summary.py` — ver ARCHITECTURE.md, nota "Status na Fase 15". `created_by` foi adicionado — não estava no desenho original — mesmo padrão de auditoria de `Quote.created_by`/`Order.created_by`. `reference_order_id` já nasceu com `FOREIGN KEY` de verdade (diferente de `quotes.customer_id`/`inventory_movements.reference_order_id`, que ficaram soltos por fases inteiras): `orders` já existia quando esta fase começou, então não havia lacuna a adiar.)*
+
 ### notifications
 
 | Coluna | Tipo | Notas |

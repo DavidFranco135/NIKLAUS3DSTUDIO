@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.application.customers.use_cases import get_customer
+from src.application.financial.use_cases import record_order_paid
 from src.application.inventory.use_cases import get_material
 from src.application.projects.use_cases import get_project
 from src.domain.orders.status import validate_transition
@@ -65,11 +66,24 @@ def get_order(db: Session, *, organization_id: UUID, order_id: UUID) -> Order:
 
 
 def transition_order_status(
-    db: Session, *, organization_id: UUID, order_id: UUID, new_status: str
+    db: Session,
+    *,
+    organization_id: UUID,
+    order_id: UUID,
+    new_status: str,
+    triggered_by: UUID | None = None,
 ) -> Order:
     order = get_order(db, organization_id=organization_id, order_id=order_id)
     validate_transition(order.status, new_status)
     OrderRepository(db).update_status(order, new_status=new_status)
+    if new_status == "paid":
+        record_order_paid(
+            db,
+            organization_id=organization_id,
+            order_id=order.id,
+            amount=order.total_amount,
+            created_by=triggered_by,
+        )
     db.commit()
     return order
 

@@ -4,6 +4,7 @@ from src.interfaces.http.v1.ai import router as ai_router
 from src.interfaces.http.v1.auth import router as auth_router
 from src.interfaces.http.v1.calculator import router as calculator_router
 from src.interfaces.http.v1.customers import router as customers_router
+from src.interfaces.http.v1.finance import router as finance_router
 from src.interfaces.http.v1.health import router as health_router
 from src.interfaces.http.v1.inventory import router as inventory_router
 from src.interfaces.http.v1.materials import router as materials_router
@@ -24,3 +25,4 @@ router.include_router(calculator_router)
 router.include_router(materials_router)
 router.include_router(inventory_router)
 router.include_router(orders_router)
+router.include_router(finance_router)
