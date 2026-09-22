@@ -332,6 +332,29 @@ class AIJobRepository:
             )
         )
 
+    def get_by_idempotency_key(self, organization_id: UUID, idempotency_key: str) -> AIJob | None:
+        """Regardless of status — used to find a previously `FAILED` job for
+
+        the same request so a retry can reuse (reset) that row instead of
+        crashing on the `UNIQUE(organization_id, idempotency_key)` constraint.
+        """
+        return self.session.scalar(
+            select(AIJob).where(
+                AIJob.organization_id == organization_id,
+                AIJob.idempotency_key == idempotency_key,
+            )
+        )
+
+    def reset_for_retry(self, job: AIJob) -> None:
+        job.status = "QUEUED"
+        job.error_message = None
+        job.result_file_id = None
+        job.result_project_version_id = None
+        job.result_metadata = None
+        job.started_at = None
+        job.finished_at = None
+        self.session.flush()
+
     def list_for_org(self, organization_id: UUID, *, project_id: UUID | None = None) -> list[AIJob]:
         stmt = select(AIJob).where(AIJob.organization_id == organization_id)
         if project_id is not None:

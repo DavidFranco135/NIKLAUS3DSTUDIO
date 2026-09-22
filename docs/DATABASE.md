@@ -174,7 +174,7 @@ Fluxo de upload: `POST .../files/upload-url` cria a linha (`status='pending'`) e
 | error_message | TEXT NULL | |
 | result_file_id | UUID FK → files NULL | |
 | result_project_version_id | UUID FK → project_versions NULL | |
-| result_metadata | JSON NULL | metadata do `GenerationResult` do provider (ex. `placeholder`/`development_only`/`note`) — adicionada na Fase 6 para o mock/stub nunca ficar disfarçado de geração real na API/UI |
+| result_metadata | JSON NULL | metadata do `GenerationResult` do provider (ex. `placeholder`/`development_only`/`note`) — adicionada na Fase 6 para o mock/stub nunca ficar disfarçado de geração real na API/UI. Para `model_stl`, a Fase 8 acrescenta a chave `mesh_quality` (`is_watertight`, `is_manifold`, `component_count`, `volume_mm3`, `area_mm2`, `repairs_applied`) vinda do `run_quality_pipeline` |
 | created_at, started_at, finished_at | TIMESTAMPTZ | |
 
 `UNIQUE (organization_id, idempotency_key)`.

@@ -1,4 +1,5 @@
 import time
+from dataclasses import replace
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.domain.ai.ports import ImageInput
 from src.domain.ai.result_validation import validate_generation_result
 from src.domain.ai.spec import StructuredSpecification, TaskType
+from src.domain.mesh.quality_pipeline import run_quality_pipeline
 from src.domain.shared.file_hash import sha256_hex
 from src.domain.shared.storage_port import StorageProvider
 from src.infrastructure.ai_providers.registry import get_providers_for_task
@@ -127,12 +129,43 @@ def execute_job(
 
     job_repo.mark_validating(job)
     db.commit()
-    issues = validate_generation_result(result)
-    if issues:
-        error_message = "Resultado reprovado na validação: " + "; ".join(issues)
-        job_repo.mark_failed(job, error_message=error_message)
-        db.commit()
-        return
+
+    if result.kind == "model_stl":
+        try:
+            repaired_bytes, quality_report = run_quality_pipeline(result.file_bytes, result.kind)
+        except Exception as exc:  # noqa: BLE001 — a garbled mesh shouldn't crash the worker
+            job_repo.mark_failed(job, error_message=f"Falha ao validar a malha: {exc}")
+            db.commit()
+            return
+        if quality_report.blocking_issues:
+            error_message = "Malha reprovada na validação: " + "; ".join(
+                quality_report.blocking_issues
+            )
+            job_repo.mark_failed(job, error_message=error_message)
+            db.commit()
+            return
+        result = replace(
+            result,
+            file_bytes=repaired_bytes,
+            metadata={
+                **result.metadata,
+                "mesh_quality": {
+                    "is_watertight": quality_report.is_watertight,
+                    "is_manifold": quality_report.is_manifold,
+                    "component_count": quality_report.component_count,
+                    "volume_mm3": quality_report.volume_mm3,
+                    "area_mm2": quality_report.area_mm2,
+                    "repairs_applied": quality_report.repairs_applied,
+                },
+            },
+        )
+    else:
+        issues = validate_generation_result(result)
+        if issues:
+            error_message = "Resultado reprovado na validação: " + "; ".join(issues)
+            job_repo.mark_failed(job, error_message=error_message)
+            db.commit()
+            return
 
     try:
         extension = _EXTENSION_BY_KIND.get(result.kind, "")

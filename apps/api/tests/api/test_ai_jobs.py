@@ -145,3 +145,35 @@ def test_job_fails_gracefully_when_storage_is_unreachable(client: TestClient):
     assert job["status"] == "FAILED"
     assert "Could not connect to storage" in job["error_message"]
     assert job["attempts"][0]["status"] == "SUCCEEDED"
+
+
+def test_retrying_the_same_prompt_after_a_failure_reuses_the_job_instead_of_crashing(
+    client: TestClient,
+):
+    # Regression test: a FAILED job still holds its idempotency_key (the
+    # UNIQUE constraint doesn't care about status), so a naive retry used to
+    # crash with a raw IntegrityError instead of trying again.
+    owner = register_user(client, organization_name="Acme Prints", email="owner@acme.io")
+    headers = auth_headers(owner["access_token"])
+    org_id = _org_id(client, headers)
+    project_id = _create_project(client, org_id, headers)
+    body = {"prompt": "Chaveiro 70x35x4mm nome RETRY", "project_id": project_id}
+
+    original_get_storage_provider = storage_module.get_storage_provider
+    storage_module.get_storage_provider = lambda: UnavailableStorageProvider()
+    try:
+        first = client.post(
+            f"/api/v1/organizations/{org_id}/ai/jobs", json=body, headers=headers
+        ).json()
+    finally:
+        storage_module.get_storage_provider = original_get_storage_provider
+    assert first["status"] == "FAILED"
+
+    second_response = client.post(
+        f"/api/v1/organizations/{org_id}/ai/jobs", json=body, headers=headers
+    )
+    assert second_response.status_code == 202
+    second = second_response.json()
+    assert second["id"] == first["id"]
+    assert second["status"] == "COMPLETED"
+    assert second["error_message"] is None

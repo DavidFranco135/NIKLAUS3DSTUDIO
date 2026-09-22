@@ -20,6 +20,6 @@ def test_image_to_3d_providers_put_the_working_mock_first():
     assert set(names[1:]) == {"stable_fast_3d", "trellis", "spar3d", "hunyuan3d"}
 
 
-def test_mesh_repair_and_texture_providers_are_mocks_for_now():
-    assert registry.get_mesh_repair_provider().name == "mock_mesh_repair"
+def test_mesh_repair_is_real_but_texture_is_still_mock():
+    assert registry.get_mesh_repair_provider().name == "trimesh_mesh_repair"
     assert registry.get_texture_provider().name == "mock_texture"

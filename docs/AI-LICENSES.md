@@ -40,8 +40,10 @@
 | **CadQuery** (alternativa, também OCCT) | Apache-2.0 / LGPL (OCCT) | Sim | Não usado (build123d escolhido) | Mesma base OCCT do build123d; considerar se build123d apresentar limitação futura |
 | **OpenSCAD** | GPL-2.0 (o programa) | Sim, como ferramenta externa via subprocess (não linkamos a lib no nosso binário) | Não usado (build123d escolhido na Fase 7) | Como é invocado via CLI (processo separado), não gera obrigação de copyleft sobre o código da plataforma — confirmar com jurídico se houver dúvida sobre o modelo de invocação |
 | **Blender** (headless) | GPL-2.0/3.0 | Sim, como ferramenta externa via subprocess | Não usado ainda | Mesma lógica do OpenSCAD — uso como processo externo, scripts próprios `.py` não precisam ser GPL |
-| **trimesh** | MIT | Sim | Não usado ainda | Sem restrição relevante |
-| **Open3D** | MIT | Sim | Não usado ainda | Sem restrição relevante |
+| **trimesh** | MIT | Sim | **Integrado (Fase 8)** — `domain/mesh/operations.py`, `TrimeshMeshRepairProvider` | Roda em processo Python puro, sem GPU |
+| **networkx** | BSD-3-Clause (a reconfirmar na fonte oficial no momento da integração, como todo o resto desta lista) | Sim | **Integrado (Fase 8)** — dependência do `trimesh.repair.fill_holes` | Biblioteca de grafos, sem restrição relevante conhecida |
+| **fast-simplification** | MIT (a reconfirmar) | Sim | **Integrado (Fase 8)** — usado por `trimesh.simplify_quadric_decimation` | Wrapper Python/C++ para decimação de malha (projeto PyVista) |
+| **Open3D** | MIT | Sim | Não usado ainda | Sem restrição relevante — trimesh cobriu as operações necessárias na Fase 8 |
 | **PyMeshLab** | GPL-3.0 | Sim como ferramenta externa; **atenção especial** se for importado como lib Python dentro do mesmo processo do backend (pode implicar copyleft sobre o processo que a importa) | Não usado ainda | Recomenda-se isolar em worker próprio/processo separado, nunca importar dentro do processo principal da API |
 | **PrusaSlicer** (CLI) | AGPL-3.0 | Sim, como binário externo via subprocess/CLI | Não usado ainda | AGPL tem cláusula de "uso via rede" — como é executado como ferramenta local pelo worker (não é modificado e redistribuído como serviço de terceiro), risco é baixo, mas **jurídico deve confirmar** antes de produção, especialmente se a plataforma for oferecida como SaaS público |
 | **OrcaSlicer** (CLI) | AGPL-3.0 | Mesma observação do PrusaSlicer | Não usado ainda | Idem |

@@ -18,7 +18,9 @@ def test_mock_image_to_3d_ignores_image_and_returns_placeholder_stl():
 
 def test_mock_mesh_repair_is_a_labeled_noop():
     provider = MockMeshRepairProvider()
-    mesh = MeshRef(storage_key="org/x/some.stl", mime_type="model/stl")
+    mesh = MeshRef(
+        storage_key="org/x/some.stl", mime_type="model/stl", kind="model_stl", file_bytes=b""
+    )
 
     repaired = provider.repair_mesh(mesh, RepairOptions())
     optimized = provider.optimize_mesh(mesh, OptimizeOptions())
@@ -30,7 +32,9 @@ def test_mock_mesh_repair_is_a_labeled_noop():
 
 def test_mock_texture_returns_valid_png():
     provider = MockTextureProvider()
-    mesh = MeshRef(storage_key="org/x/some.stl", mime_type="model/stl")
+    mesh = MeshRef(
+        storage_key="org/x/some.stl", mime_type="model/stl", kind="model_stl", file_bytes=b""
+    )
 
     result = provider.generate_texture(mesh, TextureSpec(prompt="wood grain"))
 

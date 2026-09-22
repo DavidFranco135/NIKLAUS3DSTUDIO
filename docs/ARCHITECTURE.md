@@ -211,6 +211,10 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   │                    # geometria real via build123d, puramente computacional
 │       │   │   │                    # (sem I/O), validation.py com os limites de dimensão
 │       │   │   ├── mesh/
+│       │   │   │   ├── operations.py       # fill_holes, fix_normals, simplify, scale, center,
+│       │   │   │   │                        # is_watertight/is_manifold, ... (Fase 8, via trimesh)
+│       │   │   │   └── quality_pipeline.py  # run_quality_pipeline: repara o que é sempre seguro,
+│       │   │   │                            # reporta o resto (ex. componentes desconectados)
 │       │   │   ├── printability/
 │       │   │   ├── slicing/
 │       │   │   ├── calculator/
@@ -230,14 +234,16 @@ Se uma alternativa parecer melhor no momento da implementação de um módulo es
 │       │   │   └── machines/
 │       │   ├── infrastructure/      # implementações concretas (adapters)
 │       │   │   ├── ai_providers/
-│       │   │   │   ├── mocks/       # MockLLMProvider, MockImageTo3DProvider, MockMeshRepairProvider,
-│       │   │   │   │                # MockTextureProvider, providers generativos placeholder
-│       │   │   │   │                # (Fase 4-6) — sem GPU/API paga, geometria/textura em Python
-│       │   │   │   │                # puro (stl_box.py, solid_color_png.py). MockBoxCADProvider
-│       │   │   │   │                # também mora aqui mas não está mais no registry (Fase 7
-│       │   │   │   │                # substituiu por um provider real) — usado só em testes.
-│       │   │   │   ├── real/        # Build123DCADProvider (Fase 7) — único provider "real" (não
-│       │   │   │   │                # mock, não stub) registrado até agora; usa domain/cad/templates/
+│       │   │   │   ├── mocks/       # MockLLMProvider, MockImageTo3DProvider, MockTextureProvider,
+│       │   │   │   │                # providers generativos placeholder (Fase 4-6) — sem GPU/API
+│       │   │   │   │                # paga, geometria/textura em Python puro (stl_box.py,
+│       │   │   │   │                # solid_color_png.py). MockBoxCADProvider e
+│       │   │   │   │                # MockMeshRepairProvider também moram aqui mas não estão mais
+│       │   │   │   │                # no registry (Fases 7 e 8 substituíram por providers reais)
+│       │   │   │   │                # — usados só em testes.
+│       │   │   │   ├── real/        # Build123DCADProvider (Fase 7, usa domain/cad/templates/) e
+│       │   │   │   │                # TrimeshMeshRepairProvider (Fase 8, usa domain/mesh/) —
+│       │   │   │   │                # providers "reais" (não mock, não stub) registrados até agora
 │       │   │   │   ├── stubs/       # Hunyuan3DProvider, TrellisProvider, StableFast3DProvider,
 │       │   │   │   │                # SPAR3DProvider (Fase 5) — implementam a interface real mas
 │       │   │   │   │                # levantam ProviderNotConfiguredError (sem GPU/licença
@@ -534,6 +540,14 @@ Serviço determinístico (sem IA) baseado em trimesh/Open3D/PyMeshLab, com opera
 - Detecção e reparo de buracos, remoção de faces degeneradas, recálculo de normais, remoção de componentes desconectados (com opção de manter apenas o maior componente ou todos), detecção de auto-interseções, simplificação/subdivisão/suavização de malha, verificação manifold/watertight, cálculo de volume e área, conversão de unidades, escala, centralização, orientação (auto ou manual).
 - Cada operação é uma função pura `MeshOperation(mesh) -> MeshOperationResult`, encadeável, logada individualmente em `ai_generations.processing_log` (JSONB) para reprodutibilidade e depuração.
 - Resultado de qualquer pipeline passa **sempre** pelo Printability Engine antes de ser marcado `COMPLETED` (seção 8, item 7; regra reforçada na seção 12).
+
+**Implementado na Fase 8** (`domain/mesh/operations.py`, `domain/mesh/quality_pipeline.py`) via **trimesh** (MIT — já avaliado no AI-LICENSES.md), sem GPU, sem subprocess. Operações reais: `fill_holes`, `remove_degenerate_faces`, `fix_normals`, `keep_largest_component`/`count_components`, `simplify` (decimação via `fast-simplification`), `subdivide`, `smooth`, `is_watertight`, `is_manifold` (definido aqui como `is_watertight and is_winding_consistent` — trimesh não expõe um único flag "2-manifold"), `compute_volume_mm3`/`compute_area_mm2`, `scale`, `center`. Detecção de auto-interseções, conversão de unidades e orientação automática ainda não implementadas.
+
+`run_quality_pipeline` roda no passo `VALIDATING` do AI Orchestrator (que antes só fazia uma checagem de bytes) para qualquer resultado `model_stl`: aplica os reparos sempre seguros (faces degeneradas, buracos, normais) automaticamente, mas **nunca remove componentes desconectados silenciosamente** — isso alteraria a intenção do desenho, então só é reportado (`component_count`) em vez de "corrigido". Se a malha continuar não-watertight/não-manifold ou tiver volume ≤ 0 mesmo após os reparos, o job vai para `FAILED` com uma mensagem concreta, em vez de completar silenciosamente com uma peça quebrada. `TrimeshMeshRepairProvider` (`infrastructure/ai_providers/real/`) também implementa o port `MeshRepairProvider` desenhado na Fase 5 para uso futuro fora do pipeline de geração (ex.: reparar um upload existente) — substituiu `MockMeshRepairProvider` no registry.
+
+**Dois bugs reais encontrados ao ligar a validação de verdade a resultados que antes só passavam por uma checagem de bytes:**
+1. O gerador de STL da caixa placeholder (`stl_box.py`, Fase 4 — ainda usado pelos mocks de texto/imagem) produzia uma malha *watertight* e *internamente consistente*, mas uniformemente "de dentro para fora" (normais invertidas, volume negativo) — nunca detectado porque nada antes checava o sinal do volume. A ordem dos vértices de cada triângulo foi corrigida na fonte.
+2. Um job que termina `FAILED` mantém sua `idempotency_key` (a constraint `UNIQUE(organization_id, idempotency_key)` não olha o status), então reenviar o mesmo prompt derrubava a criação com um `IntegrityError` cru em vez de tentar de novo. `create_ai_job` agora reaproveita (reseta) a linha de um job `FAILED` anterior com a mesma chave, em vez de tentar inserir uma duplicata.
 
 ## 12. Printability Engine
 

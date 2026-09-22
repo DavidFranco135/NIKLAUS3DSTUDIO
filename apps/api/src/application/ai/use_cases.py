@@ -92,22 +92,31 @@ def create_ai_job(
     if image_file_id is not None:
         _validate_image_input(db, organization_id=organization_id, image_file_id=image_file_id)
 
-    spec = get_llm_provider().extract_specification(prompt)
-    task_type = TaskType.IMAGE_TO_3D if image_file_id is not None else classify_task(spec)
+    # A previous request with this exact idempotency key may have ended in
+    # FAILED — that row still holds the key (the DB constraint doesn't care
+    # about status), so a plain INSERT would crash on the UNIQUE constraint.
+    # Reset and reuse that row instead of trying to create a second one.
+    failed_job = job_repo.get_by_idempotency_key(organization_id, idempotency_key)
+    if failed_job is not None:
+        job_repo.reset_for_retry(failed_job)
+        db.commit()
+        job_id = failed_job.id
+    else:
+        spec = get_llm_provider().extract_specification(prompt)
+        task_type = TaskType.IMAGE_TO_3D if image_file_id is not None else classify_task(spec)
 
-    job = job_repo.create(
-        organization_id=organization_id,
-        project_id=project_id,
-        requested_by=requested_by,
-        task_type=task_type.value,
-        input_spec={"prompt": prompt, "spec": spec.model_dump()},
-        queue_name=_QUEUE_BY_TASK_TYPE[task_type],
-        idempotency_key=idempotency_key,
-        source_image_file_id=image_file_id,
-    )
-    db.commit()
-
-    job_id = job.id
+        job = job_repo.create(
+            organization_id=organization_id,
+            project_id=project_id,
+            requested_by=requested_by,
+            task_type=task_type.value,
+            input_spec={"prompt": prompt, "spec": spec.model_dump()},
+            queue_name=_QUEUE_BY_TASK_TYPE[task_type],
+            idempotency_key=idempotency_key,
+            source_image_file_id=image_file_id,
+        )
+        db.commit()
+        job_id = job.id
     process_ai_job.delay(str(organization_id), str(job_id))
     # In eager mode (tests, and dev without a broker) the task above already ran
     # synchronously against a *different* DB session and committed its changes.

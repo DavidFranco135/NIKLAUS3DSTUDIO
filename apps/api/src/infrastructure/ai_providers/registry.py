@@ -13,9 +13,9 @@ from src.infrastructure.ai_providers.mocks.mock_generative import (
 )
 from src.infrastructure.ai_providers.mocks.mock_image_to_3d import MockImageTo3DProvider
 from src.infrastructure.ai_providers.mocks.mock_llm import MockLLMProvider
-from src.infrastructure.ai_providers.mocks.mock_mesh_repair import MockMeshRepairProvider
 from src.infrastructure.ai_providers.mocks.mock_texture import MockTextureProvider
 from src.infrastructure.ai_providers.real.build123d_cad import Build123DCADProvider
+from src.infrastructure.ai_providers.real.trimesh_mesh_repair import TrimeshMeshRepairProvider
 from src.infrastructure.ai_providers.stubs.hunyuan3d import Hunyuan3DProvider
 from src.infrastructure.ai_providers.stubs.spar3d import SPAR3DProvider
 from src.infrastructure.ai_providers.stubs.stable_fast_3d import StableFast3DProvider
@@ -48,7 +48,7 @@ _IMAGE_TO_3D_PROVIDERS: list[ImageTo3DProvider] = [
     Hunyuan3DProvider(),
 ]
 
-_MESH_REPAIR_PROVIDER: MeshRepairProvider = MockMeshRepairProvider()
+_MESH_REPAIR_PROVIDER: MeshRepairProvider = TrimeshMeshRepairProvider()
 _TEXTURE_PROVIDER: TextureProvider = MockTextureProvider()
 _LLM_PROVIDER: LLMProvider = MockLLMProvider()
 

@@ -31,7 +31,11 @@ def generate_box_stl(
 
     lines = [f"solid {name}"]
     for normal, (a, b, c, d) in _FACES:
-        for triangle in ((a, b, c), (a, c, d)):
+        # (a, c, b) / (a, d, c), not the more "obvious" (a, b, c) / (a, c, d):
+        # the latter winds every face inward, giving a mesh that's watertight
+        # and internally consistent but uniformly inside-out (negative signed
+        # volume) — found via Fase 8's real mesh validation, not by eye.
+        for triangle in ((a, c, b), (a, d, c)):
             lines.append(f"facet normal {normal[0]} {normal[1]} {normal[2]}")
             lines.append("outer loop")
             for idx in triangle:

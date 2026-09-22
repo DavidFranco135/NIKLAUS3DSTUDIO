@@ -1,15 +1,16 @@
 # 3D AI Studio — AI Orchestrator e Providers
 
-Este documento explica como o pipeline de IA está montado hoje (Fases 4-7) e, principalmente, **como conectar um provider generativo real** quando a infraestrutura de GPU e a licença de um modelo estiverem prontas — sem precisar redesenhar nada.
+Este documento explica como o pipeline de IA está montado hoje (Fases 4-8) e, principalmente, **como conectar um provider generativo real** quando a infraestrutura de GPU e a licença de um modelo estiverem prontas — sem precisar redesenhar nada.
 
 ## Status atual (honesto)
 
 - **NLU**: `MockLLMProvider` — extrai `StructuredSpecification` do prompt por regex determinística, não por um LLM de verdade.
 - **CAD paramétrico**: **real** desde a Fase 7 — `Build123DCADProvider` gera geometria de verdade (BREP/OCCT: furos por boolean subtraction, texto embossado, cantos arredondados, containers ocos) via build123d, sem GPU. `MockBoxCADProvider` (Fase 4) ainda existe em `mocks/` mas não está mais registrado — só usado diretamente em testes.
+- **Mesh Processing**: **real** desde a Fase 8 — `run_quality_pipeline` (via trimesh, MIT, sem GPU) roda no passo `VALIDATING` de todo job `model_stl`: repara buracos/faces degeneradas/normais automaticamente, calcula volume/área/watertight/manifold de verdade, e falha o job (em vez de completar silenciosamente) se a malha continuar quebrada após os reparos seguros. `TrimeshMeshRepairProvider` substituiu `MockMeshRepairProvider` no registry.
 - **Text-to-3D generativo**: dois mocks (`AlwaysFailingMockProvider` + `PlaceholderMockProvider`) que só existem para provar o fallback. Nenhum modelo generativo real integrado.
 - **Image-to-3D**: `MockImageTo3DProvider` — **ignora completamente a imagem enviada** e devolve o mesmo cubo placeholder. Deixa isso explícito em `result_metadata.development_only = true` e numa nota de texto, tanto na resposta da API quanto na UI (faixa amarela na página do projeto). **Nunca deve ser apresentado a um usuário como uma reconstrução 3D real.**
-- **Mesh repair / textura**: mocks no-op/placeholder, sem nenhuma biblioteca de processamento de malha ainda.
-- **4 candidatos reais de IA generativa** (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface de verdade mas levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem rodar modelo local sem GPU confirmada. **Isso é diferente do CAD paramétrico**: CAD não precisa de um modelo de IA generativa nem de GPU — é geometria determinística — por isso pôde virar real nesta fase enquanto text/image-to-3D continuam mock.
+- **Textura**: mock no-op/placeholder, sem nenhuma biblioteca de textura ainda.
+- **4 candidatos reais de IA generativa** (Hunyuan3D, TRELLIS, Stable Fast 3D, SPAR3D) têm *stubs* que implementam a interface de verdade mas levantam `ProviderNotConfiguredError` — decisão explícita de não integrar API paga nem rodar modelo local sem GPU confirmada. **Isso é diferente do CAD paramétrico e do Mesh Processing**: nenhum dos dois precisa de um modelo de IA generativa nem de GPU — são geometria determinística — por isso puderam virar reais primeiro, enquanto text/image-to-3D continuam mock.
 
 Essa separação (mock de desenvolvimento vs. stub de vendor real vs. provider real) é intencional: o mock prova que o *pipeline* funciona; o stub é o *lugar exato* onde a implementação de verdade entra depois; o provider real (CAD) mostra que essa mesma arquitetura, quando o motor não depende de GPU/licença incerta, vira produção sem nenhuma mudança estrutural.
 
@@ -34,8 +35,10 @@ execute_job (application/ai/orchestrator.py)
         │  3. para cada provider em registry.get_providers_for_task(task_type), em ordem:
         │       tenta gerar → sucesso: registra attempt SUCCEEDED e para
         │                    → falha: registra attempt FAILED e tenta o próximo
-        │  4. mark_validating → validate_generation_result (sanidade estrutural básica,
-        │     não é o Printability Engine real — isso é Fase 9)
+        │  4. mark_validating → para model_stl: run_quality_pipeline (Fase 8, real: watertight/
+        │     manifold/volume via trimesh, repara buracos/normais/faces degeneradas) — para
+        │     outros kinds: validate_generation_result (sanidade de bytes). Nenhum dos dois é
+        │     o Printability Engine (overhangs, paredes finas, encaixe na mesa — isso é Fase 9)
         │  5. persiste resultado: storage.put_object + FileAsset + ProjectVersion,
         │     project.active_version_id atualizado
         │  6. mark_completed (com result_metadata do provider) ou mark_failed

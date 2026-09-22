@@ -46,13 +46,17 @@ class ImageTo3DProvider(AIProvider, Protocol):
 
 @dataclass(frozen=True)
 class MeshRef:
-    """Points at an existing mesh file (a `FileAsset`) rather than carrying its
+    """References an existing mesh file (a `FileAsset`), carrying its bytes
 
-    bytes — mesh repair/optimize operates on something already in storage.
+    directly — same pattern as `ImageInput`: the caller (application layer)
+    already fetched them via `StorageProvider.get_object()`, so the provider
+    itself never needs its own storage dependency.
     """
 
     storage_key: str
     mime_type: str
+    kind: str
+    file_bytes: bytes
 
 
 @dataclass(frozen=True)
