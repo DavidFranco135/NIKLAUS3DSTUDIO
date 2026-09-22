@@ -570,6 +570,15 @@ Não produz uma nota única "de qualidade" — produz uma lista de **problemas c
 
 Fluxo: análise → (se houver `auto_fixable`) reparo automático via Mesh Processing → reanálise → relatório final persistido em `ai_generations` e exposto na UI como checklist, nunca como nota isolada tipo "8.5/10".
 
+**Implementado na Fase 9** (`domain/printability/`), determinístico, sem IA, via **trimesh** (mesma dependência já avaliada no AI-LICENSES.md) + **rtree** (MIT, wrapper de `libspatialindex`, também MIT — usado internamente pelo trimesh para aceleração de ray-casting). `analyze_printability(file_bytes, kind) -> PrintabilityReport` roda no passo `VALIDATING` do AI Orchestrator, **depois** do `run_quality_pipeline` da Fase 8 (que já reparou/validou watertight/manifold/volume) e **imediatamente após**, sobre a malha já reparada — de forma puramente informativa: nunca marca o job como `FAILED` por conta própria, apenas anexa o relatório em `result_metadata["printability"]`, ao lado de `mesh_quality`.
+
+Verificações reais implementadas:
+- **Overhang** (`overhang.py::analyze_overhangs`) — heurística por ângulo de normal de face: para cada triângulo com normal apontando para baixo, calcula o ângulo a partir da vertical; exclui explicitamente as faces em contato com a mesa de impressão (`min_z` da malha, com epsilon de 0.05mm) para não classificar a própria base da peça como "overhang" (bug encontrado e corrigido durante a validação — uma caixa simples reportava 16.67% de overhang antes da correção). Retorna a razão de área em overhang e o ângulo máximo. Validado contra: caixa (0%), cilindro (0%), forma "cogumelo" deliberadamente com overhang (~27–30%, ângulo máx. 90°).
+- **Parede fina** (`thin_walls.py::analyze_min_wall_thickness`) — ray-casting a partir do centróide de uma amostra de até 300 faces (todas, se a malha tiver menos), na direção da normal invertida (para dentro da peça), medindo a distância até a primeira superfície oposta atingida. Validado contra: caixa sólida (retorna ~a própria dimensão da malha), casca deliberadamente fina de 0.3mm (detecta corretamente ~0.3mm).
+- Reaproveita `is_watertight`/`is_manifold`/`compute_volume_mm3` de `domain/mesh/operations.py` e adiciona limites genéricos de dimensão (`TOO_SMALL`/`TOO_LARGE`, sem perfil de impressora real ainda — ver Fase de Impressoras/Slicer).
+
+Ainda não implementados: `DISCONNECTED_PART` como issue formal do Printability Engine (a Fase 8 já reporta `component_count` no `mesh_quality`, mas não gera um `PrintabilityIssue` dedicado), auto-fix orientado por relatório (reparo automático hoje só ocorre na Fase 8, antes da análise de printability — a Fase 9 é somente leitura), e qualquer noção de perfil de impressora real (tamanho de mesa, altura máxima) — os limites `TOO_SMALL`/`TOO_LARGE` de hoje são genéricos e serão substituídos quando o perfil de impressora existir.
+
 ## 13. Slicer Engine
 
 Camada de abstração `SlicerProvider` (seção 9) sobre CLIs de slicers reais, executados headless em worker isolado (sandbox, sem acesso à rede além do necessário):
@@ -624,8 +633,8 @@ Filas separadas por natureza de carga (permite escalar workers independentemente
 | Fila | Consumida por | Requer GPU | Status |
 |---|---|---|---|
 | `ai` (`ai.cad` + `ai.generate`, roteadas pela mesma fila por ora) | `worker-ai` | Não com os mocks atuais | **Implementada (Fase 4, providers mock)** |
-| `mesh.process` (reparo, otimização, análise) | Mesh Worker | Não | Futuro (Fase 8) |
-| `printability.analyze` | Mesh Worker | Não | Futuro (Fase 9) |
+| `mesh.process` (reparo, otimização, análise) | Mesh Worker | Não | **Lógica implementada (Fase 8)**, mas executada inline dentro do mesmo job/worker `ai` (via `run_quality_pipeline` no passo `VALIDATING`) — fila dedicada ainda não existe |
+| `printability.analyze` | Mesh Worker | Não | **Lógica implementada (Fase 9)**, mesma observação acima (`analyze_printability` roda inline, logo após o passo anterior, no mesmo worker `ai`) |
 | `slicing` | Slicing Worker | Não | Futuro (Fase 10) |
 
 Retry: backoff exponencial, máximo configurável por tipo de job, jobs idempotentes (chave de idempotência = hash da spec + input), dead-letter queue para falhas persistentes com alerta.

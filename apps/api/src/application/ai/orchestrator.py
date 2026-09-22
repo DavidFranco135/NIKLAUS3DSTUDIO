@@ -8,6 +8,7 @@ from src.domain.ai.ports import ImageInput
 from src.domain.ai.result_validation import validate_generation_result
 from src.domain.ai.spec import StructuredSpecification, TaskType
 from src.domain.mesh.quality_pipeline import run_quality_pipeline
+from src.domain.printability.analyzer import analyze_printability
 from src.domain.shared.file_hash import sha256_hex
 from src.domain.shared.storage_port import StorageProvider
 from src.infrastructure.ai_providers.registry import get_providers_for_task
@@ -144,21 +145,41 @@ def execute_job(
             job_repo.mark_failed(job, error_message=error_message)
             db.commit()
             return
-        result = replace(
-            result,
-            file_bytes=repaired_bytes,
-            metadata={
-                **result.metadata,
-                "mesh_quality": {
-                    "is_watertight": quality_report.is_watertight,
-                    "is_manifold": quality_report.is_manifold,
-                    "component_count": quality_report.component_count,
-                    "volume_mm3": quality_report.volume_mm3,
-                    "area_mm2": quality_report.area_mm2,
-                    "repairs_applied": quality_report.repairs_applied,
-                },
+        metadata = {
+            **result.metadata,
+            "mesh_quality": {
+                "is_watertight": quality_report.is_watertight,
+                "is_manifold": quality_report.is_manifold,
+                "component_count": quality_report.component_count,
+                "volume_mm3": quality_report.volume_mm3,
+                "area_mm2": quality_report.area_mm2,
+                "repairs_applied": quality_report.repairs_applied,
             },
-        )
+        }
+        try:
+            printability_report = analyze_printability(repaired_bytes, result.kind)
+        except Exception:  # noqa: BLE001 — printability is informational, never blocks the job
+            pass
+        else:
+            metadata["printability"] = {
+                "is_manifold": printability_report.is_manifold,
+                "is_watertight": printability_report.is_watertight,
+                "volume_mm3": printability_report.volume_mm3,
+                "bounding_box_mm": list(printability_report.bounding_box_mm),
+                "overhang_area_ratio": printability_report.overhang_area_ratio,
+                "max_overhang_angle_deg": printability_report.max_overhang_angle_deg,
+                "min_wall_thickness_mm": printability_report.min_wall_thickness_mm,
+                "issues": [
+                    {
+                        "code": issue.code,
+                        "severity": issue.severity,
+                        "detail": issue.detail,
+                        "auto_fixable": issue.auto_fixable,
+                    }
+                    for issue in printability_report.issues
+                ],
+            }
+        result = replace(result, file_bytes=repaired_bytes, metadata=metadata)
     else:
         issues = validate_generation_result(result)
         if issues:

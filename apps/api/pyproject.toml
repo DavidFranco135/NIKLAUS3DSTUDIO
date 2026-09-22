@@ -21,6 +21,7 @@ dependencies = [
   "trimesh>=4.0",
   "networkx>=3.0",
   "fast-simplification>=0.1",
+  "rtree>=1.2",
 ]
 
 [project.optional-dependencies]

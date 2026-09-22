@@ -65,6 +65,9 @@ def test_image_job_completes_with_dev_only_mock_and_creates_version(
     assert job["result_metadata"]["development_only"] is True
     assert job["result_metadata"]["placeholder"] is True
     assert job["result_project_version_id"] is not None
+    assert "mesh_quality" in job["result_metadata"]
+    assert "printability" in job["result_metadata"]
+    assert job["result_metadata"]["printability"]["is_watertight"] is True
 
     project = client.get(
         f"/api/v1/organizations/{org_id}/projects/{project_id}", headers=headers
