@@ -772,6 +772,13 @@ Como planejado desde a Fase 3/11 (ver notas "Implementada na Fase 3" e "Fase 11"
 - **Integração automática com Pedidos (Fase 14):** `application/orders/use_cases.py::transition_order_status` agora chama `application/financial/use_cases.py::record_order_paid` quando a nova transição é `paid` — cria uma `financial_transaction` do tipo `receita`, categoria `"pedido"`, valor igual a `order.total_amount`, já paga (`paid_at` no momento da transição), vinculada via `reference_order_id`. É a razão de ser do `reference_order_id` FK que a Fase 14 deixou pronto. Isso é o único lugar do sistema que cria uma transação financeira automaticamente — todo o resto (`despesa`, `custo`, `receita` fora do fluxo de pedido) é lançado manualmente via `POST /finance/transactions`.
 - Endpoints em `interfaces/http/v1/finance.py`: `POST/GET /organizations/{id}/finance/transactions[/{id}]`, `POST .../transactions/{id}/mark-paid`, `GET /organizations/{id}/finance/summary` (com filtro opcional `start_date`/`end_date` por `created_at`). Papel mínimo `MANAGER` para lançar/marcar transação — mais restrito que `orders`/`inventory` (`OPERATOR`), decisão consistente com a tabela de papéis da seção 7 ("`MANAGER` opera... financeiro"); `VIEWER` para ler/consultar o resumo.
 
+**Status na Fase 16 (Dashboard):** implementada — **sem nenhuma tabela nova**, diferente de todas as fases anteriores desde a 12: esta fase é pura agregação de leitura sobre dados que já existem, então não há schema para acrescentar em DATABASE.md.
+
+- `domain/dashboard/aggregation.py::count_by_status` — a única lógica nova, e é trivial o suficiente para caber numa função (conta ocorrências por valor); ainda assim vive em `domain/` e tem teste isolado, pelo mesmo princípio aplicado a toda a plataforma (nenhum cálculo, nem o mais simples, escondido dentro de um use case sem cobertura própria).
+- `application/dashboard/use_cases.py::get_dashboard_summary` só compõe o que os módulos anteriores já expõem — nenhuma regra de negócio nova: contagem de pedidos por status (`orders_by_status`, via `count_by_status`), contagem de itens em estoque baixo (reaproveita `list_inventory_items(..., low_stock_only=True)` da Fase 12), contagem de clientes e projetos, e o resumo financeiro (reaproveita `get_financial_summary` da Fase 15, com os mesmos filtros opcionais `start_date`/`end_date`).
+- Único endpoint: `GET /organizations/{id}/dashboard` (`VIEWER` — é só leitura, sem motivo para exigir papel maior que os demais endpoints de consulta da plataforma).
+- Frontend consumidor (`features/dashboard/`, ARCHITECTURE.md §5) ainda não existe — esta fase entrega só o endpoint; nenhuma página nova foi construída.
+
 ## 24. Riscos técnicos
 
 | Risco | Impacto | Mitigação |

@@ -433,3 +433,11 @@ class FinancialSummaryResponse(BaseModel):
     profit: float
     pending_receivables: float
     pending_payables: float
+
+
+class DashboardResponse(BaseModel):
+    orders_by_status: dict[str, int]
+    low_stock_items_count: int
+    customers_count: int
+    projects_count: int
+    financial: FinancialSummaryResponse
