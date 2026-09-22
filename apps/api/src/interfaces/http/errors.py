@@ -17,6 +17,7 @@ from src.domain.shared.exceptions import (
     InvalidInventoryMovementError,
     InvalidOrderTransitionError,
     InventoryItemNotFoundError,
+    MachineNotFoundError,
     MaterialNotFoundError,
     OrderNotFoundError,
     OrganizationNotFoundError,
@@ -60,6 +61,7 @@ _STATUS_BY_ERROR = {
     InvalidOrderTransitionError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     FinancialTransactionNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidFinancialTransactionTypeError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    MachineNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 

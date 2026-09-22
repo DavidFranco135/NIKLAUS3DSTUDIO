@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.application.customers.use_cases import get_customer
+from src.application.machines.use_cases import get_machine
 from src.application.projects.use_cases import get_project
 from src.domain.calculator.engine import calculate_quote
 from src.domain.calculator.inputs import QuoteInputs
@@ -76,7 +77,8 @@ def create_quote(
     created_by: UUID | None,
     material_cost: float,
     print_time_hours: float,
-    machine_cost_per_hour: float,
+    machine_cost_per_hour: float | None = None,
+    machine_id: UUID | None = None,
     energy_kwh: float,
     labor_hours: float,
 ) -> Quote:
@@ -93,11 +95,17 @@ def create_quote(
         if version is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
 
+    if machine_id is not None:
+        machine = get_machine(db, organization_id=organization_id, machine_id=machine_id)
+        effective_machine_cost_per_hour = machine.cost_per_hour or 0.0
+    else:
+        effective_machine_cost_per_hour = machine_cost_per_hour or 0.0
+
     breakdown = calculate_quote(
         QuoteInputs(
             material_cost=material_cost,
             print_time_hours=print_time_hours,
-            machine_cost_per_hour=machine_cost_per_hour,
+            machine_cost_per_hour=effective_machine_cost_per_hour,
             energy_kwh=energy_kwh,
             labor_hours=labor_hours,
         ),

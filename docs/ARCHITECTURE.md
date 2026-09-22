@@ -779,6 +779,13 @@ Como planejado desde a Fase 3/11 (ver notas "Implementada na Fase 3" e "Fase 11"
 - Único endpoint: `GET /organizations/{id}/dashboard` (`VIEWER` — é só leitura, sem motivo para exigir papel maior que os demais endpoints de consulta da plataforma).
 - Frontend consumidor (`features/dashboard/`, ARCHITECTURE.md §5) ainda não existe — esta fase entrega só o endpoint; nenhuma página nova foi construída.
 
+**Status na Fase 17 (Integração com impressoras):** implementada — só **perfis**, exatamente como o roadmap nomeia esta fase ("perfis; conectividade futura"); nenhuma comunicação com impressora real (nenhum `MachineProvider`, nenhum protocolo de telemetria/conectividade) foi construída, nem estava prevista.
+
+- Tabela `machines` (DATABASE.md) — catálogo de impressoras por organização: nome, marca/modelo, tecnologia (FDM/SLA/MSLA), volume de impressão, potência, `cost_per_hour`, `speed_profile`/`compatible_materials` (JSON livre), `status` (active/maintenance/inactive — sem soft delete, mudar para `inactive` via `PATCH` é a forma de "desativar" uma máquina, não existe `DELETE`). CRUD direto sobre o modelo em `application/machines/use_cases.py`, mesmo padrão de `Customer`/`Material` (sem `domain/machines/` dedicado — não há cálculo determinístico aqui).
+- Fecha a última coluna solta pendente do sistema: `order_items.machine_id` ganhou a `FOREIGN KEY` para `machines` (mesma migration desta fase); `add_order_item` agora valida que a máquina existe na organização antes de vincular, mesmo padrão de `material_id`.
+- **Integração com a Calculadora, resolvendo o apontamento que `machines.cost_per_hour` já carregava desde o desenho original** ("usado na Calculadora"): `POST /quotes` ganhou um `machine_id` opcional — quando informado, `create_quote` busca `machine.cost_per_hour` e usa como `machine_cost_per_hour` em vez de exigir o valor manual. Um `model_validator` no schema exige **exatamente um** dos dois (`machine_id` xor `machine_cost_per_hour`) — nunca os dois, nunca nenhum. Mudança aditiva e retrocompatível: todo fluxo que já informava `machine_cost_per_hour` manualmente continua funcionando sem alteração (testado explicitamente, `test_quote_can_use_machine_cost_per_hour_from_a_machine_profile` compara os dois caminhos e confirma preço idêntico).
+- Endpoints em `interfaces/http/v1/machines.py`: `POST/GET/PATCH /organizations/{id}/machines[/{id}]` (`MANAGER` para cadastrar/editar, `VIEWER` para ler) — sem `DELETE`, por design (ver acima).
+
 ## 24. Riscos técnicos
 
 | Risco | Impacto | Mitigação |

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from src.application.customers.use_cases import get_customer
 from src.application.financial.use_cases import record_order_paid
 from src.application.inventory.use_cases import get_material
+from src.application.machines.use_cases import get_machine
 from src.application.projects.use_cases import get_project
 from src.domain.orders.status import validate_transition
 from src.domain.orders.totals import OrderItemTotal, compute_total_amount
@@ -113,6 +114,9 @@ def add_order_item(
 
     if material_id is not None:
         get_material(db, organization_id=organization_id, material_id=material_id)
+
+    if machine_id is not None:
+        get_machine(db, organization_id=organization_id, machine_id=machine_id)
 
     item_repo = OrderItemRepository(db)
     item_repo.create(

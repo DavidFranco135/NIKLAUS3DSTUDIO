@@ -273,6 +273,8 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | status | TEXT NOT NULL DEFAULT 'active' | active / maintenance / inactive |
 | created_at, updated_at | TIMESTAMPTZ | |
 
+*(Implementada na Fase 17 — ver ARCHITECTURE.md, nota "Status na Fase 17". Só perfis, sem conectividade real com a impressora (nenhum protocolo de telemetria) — isso é trabalho futuro, fora do escopo desta fase, como o próprio roadmap já nomeava ("perfis; conectividade futura"). Sem `deleted_at`: "excluir" uma máquina é mudar `status` para `inactive` via `PATCH`, não há `DELETE`. `cost_per_hour` agora é de fato "usado na Calculadora" — `POST /quotes` aceita um `machine_id` opcional que busca esse valor em vez de exigir `machine_cost_per_hour` manual.)*
+
 ### materials
 
 | Coluna | Tipo | Notas |
@@ -388,7 +390,7 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | status | TEXT NOT NULL DEFAULT 'pending' | pending / printing / done / failed |
 | created_at, updated_at | TIMESTAMPTZ | |
 
-*(`machine_id` existe como coluna solta, sem `FOREIGN KEY`, porque `machines` ainda não existe — Fase 17; mesmo padrão adiado já usado antes para `quotes.customer_id`/`projects.customer_id`/`inventory_movements.reference_order_id`. `total_amount` de `orders` é recalculado por `domain/orders/totals.py::compute_total_amount` a cada item adicionado — nunca incrementado, para não acumular erro de arredondamento.)*
+*(`machine_id` ficou como coluna solta, sem `FOREIGN KEY`, até a Fase 17 criar `machines` — a constraint foi adicionada então, numa migration própria, mesmo padrão usado antes para `quotes.customer_id`/`projects.customer_id`/`inventory_movements.reference_order_id`. `total_amount` de `orders` é recalculado por `domain/orders/totals.py::compute_total_amount` a cada item adicionado — nunca incrementado, para não acumular erro de arredondamento.)*
 
 ### financial_transactions
 

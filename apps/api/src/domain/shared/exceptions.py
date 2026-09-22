@@ -146,3 +146,7 @@ class FinancialTransactionNotFoundError(DomainError):
 
 class InvalidFinancialTransactionTypeError(DomainError):
     pass
+
+
+class MachineNotFoundError(DomainError):
+    pass

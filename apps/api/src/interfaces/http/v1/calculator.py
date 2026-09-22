@@ -97,6 +97,7 @@ def create_quote(
             material_cost=payload.material_cost,
             print_time_hours=payload.print_time_hours,
             machine_cost_per_hour=payload.machine_cost_per_hour,
+            machine_id=payload.machine_id,
             energy_kwh=payload.energy_kwh,
             labor_hours=payload.labor_hours,
         )

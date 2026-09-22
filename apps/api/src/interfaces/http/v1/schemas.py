@@ -225,7 +225,8 @@ class CreateQuoteRequest(BaseModel):
     customer_id: UUID | None = None
     material_cost: float = Field(ge=0)
     print_time_hours: float = Field(ge=0)
-    machine_cost_per_hour: float = Field(ge=0)
+    machine_cost_per_hour: float | None = Field(default=None, ge=0)
+    machine_id: UUID | None = None
     energy_kwh: float = Field(ge=0)
     labor_hours: float = Field(ge=0)
 
@@ -233,6 +234,14 @@ class CreateQuoteRequest(BaseModel):
     def _project_fields_go_together(self) -> "CreateQuoteRequest":
         if (self.project_id is None) != (self.project_version_id is None):
             raise ValueError("Informe project_id e project_version_id juntos, ou nenhum dos dois.")
+        return self
+
+    @model_validator(mode="after")
+    def _exactly_one_machine_cost_source(self) -> "CreateQuoteRequest":
+        if (self.machine_id is None) == (self.machine_cost_per_hour is None):
+            raise ValueError(
+                "Informe machine_id ou machine_cost_per_hour, nunca os dois nem nenhum."
+            )
         return self
 
 
@@ -441,3 +450,44 @@ class DashboardResponse(BaseModel):
     customers_count: int
     projects_count: int
     financial: FinancialSummaryResponse
+
+
+class CreateMachineRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    brand: str | None = Field(default=None, max_length=100)
+    model: str | None = Field(default=None, max_length=100)
+    technology: str = Field(pattern="^(FDM|SLA|MSLA)$")
+    build_volume_x_mm: float | None = Field(default=None, gt=0)
+    build_volume_y_mm: float | None = Field(default=None, gt=0)
+    build_volume_z_mm: float | None = Field(default=None, gt=0)
+    power_watts: float | None = Field(default=None, ge=0)
+    cost_per_hour: float | None = Field(default=None, ge=0)
+    speed_profile: dict | None = None
+    compatible_materials: list[str] | None = None
+
+
+class UpdateMachineRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    brand: str | None = Field(default=None, max_length=100)
+    model: str | None = Field(default=None, max_length=100)
+    cost_per_hour: float | None = Field(default=None, ge=0)
+    status: str | None = Field(default=None, pattern="^(active|maintenance|inactive)$")
+
+
+class MachineResponse(BaseModel):
+    id: UUID
+    name: str
+    brand: str | None
+    model: str | None
+    technology: str
+    build_volume_x_mm: float | None
+    build_volume_y_mm: float | None
+    build_volume_z_mm: float | None
+    power_watts: float | None
+    cost_per_hour: float | None
+    speed_profile: dict | None
+    compatible_materials: list[str] | None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

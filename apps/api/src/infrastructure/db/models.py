@@ -422,9 +422,9 @@ class OrderItem(Base):
     project_version_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("project_versions.id"), nullable=True
     )
-    # Sem FK para "machines" ainda (tabela não existe até a Fase 17) — coluna
-    # e constraint chegam juntas quando a tabela existir.
-    machine_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    machine_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("machines.id"), nullable=True
+    )
     material_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("materials.id"), nullable=True
     )
@@ -457,6 +457,41 @@ class FinancialTransaction(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id"), nullable=True
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Machine(Base):
+    __tablename__ = "machines"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    brand: Mapped[str | None] = mapped_column(String, nullable=True)
+    model: Mapped[str | None] = mapped_column(String, nullable=True)
+    technology: Mapped[str] = mapped_column(String(20), nullable=False)
+    build_volume_x_mm: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    build_volume_y_mm: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    build_volume_z_mm: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    power_watts: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    cost_per_hour: Mapped[float | None] = mapped_column(
+        Numeric(12, 4, asdecimal=False), nullable=True
+    )
+    speed_profile: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    compatible_materials: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

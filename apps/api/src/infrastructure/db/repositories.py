@@ -13,6 +13,7 @@ from src.infrastructure.db.models import (
     FinancialTransaction,
     InventoryItem,
     InventoryMovement,
+    Machine,
     Material,
     Order,
     OrderItem,
@@ -961,3 +962,58 @@ class FinancialTransactionRepository:
     def mark_paid(self, transaction: FinancialTransaction) -> None:
         transaction.paid_at = datetime.now(UTC)
         self.session.flush()
+
+
+class MachineRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, machine_id: UUID) -> Machine | None:
+        return self.session.scalar(
+            select(Machine).where(
+                Machine.id == machine_id, Machine.organization_id == organization_id
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Machine]:
+        return list(
+            self.session.scalars(
+                select(Machine)
+                .where(Machine.organization_id == organization_id)
+                .order_by(Machine.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        brand: str | None,
+        model: str | None,
+        technology: str,
+        build_volume_x_mm: float | None,
+        build_volume_y_mm: float | None,
+        build_volume_z_mm: float | None,
+        power_watts: float | None,
+        cost_per_hour: float | None,
+        speed_profile: dict | None,
+        compatible_materials: list | None,
+    ) -> Machine:
+        machine = Machine(
+            organization_id=organization_id,
+            name=name,
+            brand=brand,
+            model=model,
+            technology=technology,
+            build_volume_x_mm=build_volume_x_mm,
+            build_volume_y_mm=build_volume_y_mm,
+            build_volume_z_mm=build_volume_z_mm,
+            power_watts=power_watts,
+            cost_per_hour=cost_per_hour,
+            speed_profile=speed_profile,
+            compatible_materials=compatible_materials,
+        )
+        self.session.add(machine)
+        self.session.flush()
+        return machine

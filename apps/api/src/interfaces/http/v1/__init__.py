@@ -8,6 +8,7 @@ from src.interfaces.http.v1.dashboard import router as dashboard_router
 from src.interfaces.http.v1.finance import router as finance_router
 from src.interfaces.http.v1.health import router as health_router
 from src.interfaces.http.v1.inventory import router as inventory_router
+from src.interfaces.http.v1.machines import router as machines_router
 from src.interfaces.http.v1.materials import router as materials_router
 from src.interfaces.http.v1.orders import router as orders_router
 from src.interfaces.http.v1.organizations import router as organizations_router
@@ -28,3 +29,4 @@ router.include_router(inventory_router)
 router.include_router(orders_router)
 router.include_router(finance_router)
 router.include_router(dashboard_router)
+router.include_router(machines_router)
