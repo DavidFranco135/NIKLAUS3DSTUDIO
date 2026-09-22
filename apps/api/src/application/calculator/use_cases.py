@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.customers.use_cases import get_customer
 from src.application.projects.use_cases import get_project
 from src.domain.calculator.engine import calculate_quote
 from src.domain.calculator.inputs import QuoteInputs
@@ -80,6 +81,9 @@ def create_quote(
     labor_hours: float,
 ) -> Quote:
     profile = get_cost_profile(db, organization_id=organization_id, cost_profile_id=cost_profile_id)
+
+    if customer_id is not None:
+        get_customer(db, organization_id=organization_id, customer_id=customer_id)
 
     if project_version_id is not None:
         if project_id is None:

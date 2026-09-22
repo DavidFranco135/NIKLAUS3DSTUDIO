@@ -38,13 +38,17 @@ def create_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ProjectResponse:
-    project = project_use_cases.create_project(
-        db,
-        organization_id=organization_id,
-        name=payload.name,
-        description=payload.description,
-        created_by=current_user.id,
-    )
+    try:
+        project = project_use_cases.create_project(
+            db,
+            organization_id=organization_id,
+            name=payload.name,
+            description=payload.description,
+            created_by=current_user.id,
+            customer_id=payload.customer_id,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
     return ProjectResponse.model_validate(project)
 
 

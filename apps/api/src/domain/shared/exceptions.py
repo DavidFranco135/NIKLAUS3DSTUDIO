@@ -126,3 +126,7 @@ class InvalidInventoryMovementError(DomainError):
 
 class InsufficientStockError(DomainError):
     pass
+
+
+class CustomerNotFoundError(DomainError):
+    pass

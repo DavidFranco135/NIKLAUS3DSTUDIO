@@ -8,6 +8,7 @@ from src.infrastructure.db.models import (
     AIJob,
     AIJobAttempt,
     CostProfile,
+    Customer,
     FileAsset,
     InventoryItem,
     InventoryMovement,
@@ -163,14 +164,34 @@ class ProjectRepository:
             )
         )
 
+    def list_for_customer(self, organization_id: UUID, customer_id: UUID) -> list[Project]:
+        return list(
+            self.session.scalars(
+                select(Project)
+                .where(
+                    Project.organization_id == organization_id,
+                    Project.customer_id == customer_id,
+                    Project.deleted_at.is_(None),
+                )
+                .order_by(Project.created_at.desc())
+            )
+        )
+
     def create(
-        self, *, organization_id: UUID, name: str, description: str | None, created_by: UUID
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        description: str | None,
+        created_by: UUID,
+        customer_id: UUID | None = None,
     ) -> Project:
         project = Project(
             organization_id=organization_id,
             name=name,
             description=description,
             created_by=created_by,
+            customer_id=customer_id,
         )
         self.session.add(project)
         self.session.flush()
@@ -543,6 +564,17 @@ class QuoteRepository:
             )
         )
 
+    def list_for_customer(self, organization_id: UUID, customer_id: UUID) -> list[Quote]:
+        return list(
+            self.session.scalars(
+                select(Quote)
+                .where(
+                    Quote.organization_id == organization_id, Quote.customer_id == customer_id
+                )
+                .order_by(Quote.created_at.desc())
+            )
+        )
+
     def create(
         self,
         *,
@@ -706,3 +738,54 @@ class InventoryMovementRepository:
         self.session.add(movement)
         self.session.flush()
         return movement
+
+
+class CustomerRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, customer_id: UUID) -> Customer | None:
+        return self.session.scalar(
+            select(Customer).where(
+                Customer.id == customer_id,
+                Customer.organization_id == organization_id,
+                Customer.deleted_at.is_(None),
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Customer]:
+        return list(
+            self.session.scalars(
+                select(Customer)
+                .where(Customer.organization_id == organization_id, Customer.deleted_at.is_(None))
+                .order_by(Customer.created_at.desc())
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        email: str | None,
+        phone: str | None,
+        document: str | None,
+        address: dict | None,
+        notes: str | None,
+    ) -> Customer:
+        customer = Customer(
+            organization_id=organization_id,
+            name=name,
+            email=email,
+            phone=phone,
+            document=document,
+            address=address,
+            notes=notes,
+        )
+        self.session.add(customer)
+        self.session.flush()
+        return customer
+
+    def soft_delete(self, customer: Customer) -> None:
+        customer.deleted_at = datetime.now(UTC)
+        self.session.flush()

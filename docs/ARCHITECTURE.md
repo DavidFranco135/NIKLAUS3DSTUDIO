@@ -749,6 +749,14 @@ Cada fase só é iniciada após aprovação explícita da fase anterior, conform
 
 Bug real encontrado nos testes desta fase: ordenar o histórico de movimentos por `created_at DESC` usando o `server_default=func.now()` do SQLite (resolução de 1 segundo) produzia ordem não-determinística para dois movimentos criados dentro do mesmo segundo — o teste `test_movement_history_is_listed_newest_first` falhava de forma intermitente. Corrigido trocando para um default Python (`datetime.now(UTC)`, resolução de microssegundos) só na coluna `inventory_movements.created_at`, onde a ordem realmente importa para a feature.
 
+**Status na Fase 13 (Clientes):** implementada — tabela `customers` (soft delete via `deleted_at`, mesmo padrão de `Project`) com CRUD completo em `interfaces/http/v1/customers.py`: `POST/GET/PATCH/DELETE /organizations/{id}/customers[/{id}]` (`OPERATOR` para criar/editar, `MANAGER` para excluir, `VIEWER` para ler). Sem `domain/customers/` dedicado — é CRUD direto sobre o modelo, mesmo padrão já usado para `Project` na Fase 3 (não há cálculo determinístico algum envolvido aqui que justifique uma camada de domínio pura separada).
+
+Como planejado desde a Fase 3/11 (ver notas "Implementada na Fase 3" e "Fase 11" em DATABASE.md), esta fase também fecha as duas colunas de cliente que ficaram propositalmente soltas até agora: `projects.customer_id` (nova coluna + FK, opcional — um projeto pode não ter cliente vinculado) e `quotes.customer_id` (já existia como coluna solta desde a Fase 11; ganhou a `FOREIGN KEY` agora que `customers` existe). Ambas validam a posse do cliente pela organização antes de vincular (`CustomerNotFoundError` → 404 se o cliente não existir ou pertencer a outra organização).
+
+"Histórico" (do título da fase, "Clientes: CRUD + histórico") por ora é `GET /organizations/{id}/customers/{id}/history`, retornando os `projects` e `quotes` vinculados ao cliente — ainda não inclui pedidos/entregas porque `orders` só existe na Fase 14; o endpoint devolve o que já é possível vincular hoje, e passará a incluir pedidos sem mudar de formato quando essa fase existir.
+
+**Pendência de compliance sinalizada, não implementada:** `customers.document` (CPF/CNPJ) é armazenado em texto plano. O desenho original (DATABASE.md) já observava "armazenar cifrado em repouso se exigido por compliance" — decisão explícita de não implementar criptografia de campo agora (exigiria infra de KMS/gestão de chaves que não existe neste projeto ainda) até que haja um requisito de compliance concreto que a justifique; documentado aqui para não ser esquecido antes de produção com dados reais de clientes.
+
 ## 24. Riscos técnicos
 
 | Risco | Impacto | Mitigação |

@@ -104,7 +104,7 @@ Login e `/auth/refresh` emitem um access token JWT stateless (15 min) e um refre
 
 ### projects
 
-*(Implementada na Fase 3. `customer_id` foi omitido por ora — o módulo de clientes é da Fase 13; a coluna entra numa migration própria quando `customers` existir. `active_version_id` foi adicionado — não estava no desenho original — para o projeto apontar para sua versão "atual" sem precisar de uma subquery a cada leitura.)*
+*(Implementada na Fase 3. `customer_id` foi adicionado na Fase 13, numa migration própria, agora que `customers` existe — nullable, um projeto pode não ter cliente vinculado. `active_version_id` foi adicionado — não estava no desenho original — para o projeto apontar para sua versão "atual" sem precisar de uma subquery a cada leitura.)*
 
 | Coluna | Tipo | Notas |
 |---|---|---|
@@ -253,6 +253,8 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | notes | TEXT NULL | |
 | created_at, updated_at, deleted_at | TIMESTAMPTZ | |
 
+*(Implementada na Fase 13 — ver ARCHITECTURE.md, nota "Status na Fase 13". `document` está em texto plano nesta implementação — a cifragem em repouso mencionada na nota original ainda não foi feita, ver a pendência de compliance sinalizada na mesma nota da ARCHITECTURE.md. Soft delete via `deleted_at`, mesmo padrão de `projects`.)*
+
 ### machines
 
 | Coluna | Tipo | Notas |
@@ -316,7 +318,7 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | created_by | UUID FK → users | |
 | created_at | TIMESTAMPTZ | |
 
-*(`materials`, `inventory_items` e `inventory_movements` implementadas na Fase 12 — ver ARCHITECTURE.md, nota "Status na Fase 12" após o Roadmap. `reference_order_id` em `inventory_movements` existe como coluna solta, sem `FOREIGN KEY`, porque `orders` ainda não existe (Fase 14); a constraint chega junto com essa tabela, mesmo padrão já usado para `quotes.customer_id`. `density_g_cm3`/`cost_per_kg` em `materials` foram implementados como `NULL`-áveis — o desenho original não marcava `NOT NULL` explicitamente para eles.)*
+*(`materials`, `inventory_items` e `inventory_movements` implementadas na Fase 12 — ver ARCHITECTURE.md, nota "Status na Fase 12" após o Roadmap. `reference_order_id` em `inventory_movements` existe como coluna solta, sem `FOREIGN KEY`, porque `orders` ainda não existe (Fase 14); a constraint chega junto com essa tabela, mesmo padrão já usado para `quotes.customer_id` até a Fase 13 fechar essa lacuna. `density_g_cm3`/`cost_per_kg` em `materials` foram implementados como `NULL`-áveis — o desenho original não marcava `NOT NULL` explicitamente para eles.)*
 
 ### cost_profiles
 
@@ -352,7 +354,7 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | created_by | UUID FK → users NULL | quem criou o orçamento — não estava no desenho original, adicionado por consistência com toda outra entidade auditável (`Project.created_by`, `AIJob.requested_by`, ...) |
 | created_at, updated_at | TIMESTAMPTZ | |
 
-*(`cost_profiles` e `quotes` implementadas na Fase 11, junto com `domain/calculator/` — ver ARCHITECTURE.md §14. `customer_id` em `quotes` existe como coluna solta, sem `FOREIGN KEY`, porque `customers` ainda não existe (Fase 13); a constraint chega junto com essa tabela. Todo cálculo é 100% determinístico — nenhum campo aqui é preenchido por IA generativa, só por quem cria o orçamento.)*
+*(`cost_profiles` e `quotes` implementadas na Fase 11, junto com `domain/calculator/` — ver ARCHITECTURE.md §14. `customer_id` em `quotes` ficou como coluna solta, sem `FOREIGN KEY`, até a Fase 13 criar `customers` — a constraint foi adicionada então, numa migration própria. Todo cálculo é 100% determinístico — nenhum campo aqui é preenchido por IA generativa, só por quem cria o orçamento.)*
 
 ### orders
 

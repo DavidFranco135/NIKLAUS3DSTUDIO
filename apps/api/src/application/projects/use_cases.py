@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.application.customers.use_cases import get_customer
 from src.domain.shared.exceptions import (
     FileAssetNotFoundError,
     FileNotUploadedError,
@@ -17,10 +18,22 @@ from src.infrastructure.db.repositories import (
 
 
 def create_project(
-    db: Session, *, organization_id: UUID, name: str, description: str | None, created_by: UUID
+    db: Session,
+    *,
+    organization_id: UUID,
+    name: str,
+    description: str | None,
+    created_by: UUID,
+    customer_id: UUID | None = None,
 ) -> Project:
+    if customer_id is not None:
+        get_customer(db, organization_id=organization_id, customer_id=customer_id)
     project = ProjectRepository(db).create(
-        organization_id=organization_id, name=name, description=description, created_by=created_by
+        organization_id=organization_id,
+        name=name,
+        description=description,
+        created_by=created_by,
+        customer_id=customer_id,
     )
     db.commit()
     return project

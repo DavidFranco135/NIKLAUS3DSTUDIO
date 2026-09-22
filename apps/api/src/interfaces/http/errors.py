@@ -4,6 +4,7 @@ from src.domain.shared.exceptions import (
     AIJobNotFoundError,
     CannotRemoveLastOwnerError,
     CostProfileNotFoundError,
+    CustomerNotFoundError,
     EmailAlreadyRegisteredError,
     FileAssetNotFoundError,
     FileNotUploadedError,
@@ -50,6 +51,7 @@ _STATUS_BY_ERROR = {
     InventoryItemNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidInventoryMovementError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     InsufficientStockError: status.HTTP_409_CONFLICT,
+    CustomerNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 

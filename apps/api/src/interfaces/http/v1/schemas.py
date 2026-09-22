@@ -71,6 +71,7 @@ class AddMemberRequest(BaseModel):
 class CreateProjectRequest(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    customer_id: UUID | None = None
 
 
 class UpdateProjectRequest(BaseModel):
@@ -81,6 +82,7 @@ class UpdateProjectRequest(BaseModel):
 
 class ProjectResponse(BaseModel):
     id: UUID
+    customer_id: UUID | None
     name: str
     description: str | None
     status: str
@@ -157,6 +159,37 @@ class AIJobAttemptResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateCustomerRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=30)
+    document: str | None = Field(default=None, max_length=30)
+    address: dict | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class UpdateCustomerRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=30)
+    document: str | None = Field(default=None, max_length=30)
+    address: dict | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class CustomerResponse(BaseModel):
+    id: UUID
+    name: str
+    email: str | None
+    phone: str | None
+    document: str | None
+    address: dict | None
+    notes: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CreateCostProfileRequest(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     energy_cost_per_kwh: float = Field(ge=0)
@@ -216,6 +249,11 @@ class QuoteResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CustomerHistoryResponse(BaseModel):
+    quotes: list[QuoteResponse]
+    projects: list[ProjectResponse]
 
 
 class CreateMaterialRequest(BaseModel):
