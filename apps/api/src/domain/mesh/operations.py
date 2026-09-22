@@ -5,6 +5,7 @@ import trimesh
 _TRIMESH_FILE_TYPE_BY_KIND = {
     "model_stl": "stl",
     "model_obj": "obj",
+    "model_glb": "glb",
 }
 
 

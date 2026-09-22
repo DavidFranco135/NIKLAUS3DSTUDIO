@@ -207,16 +207,17 @@ function ProjectDetailPageInner() {
 
       let previewUrl: string | null = null;
       let fileKind: string | null = null;
-      if (finished.result_project_version_id && finished.result_file_id) {
+      if (finished.result_project_version_id) {
         const files = await apiFetch<FileAsset[]>(
           `${orgPath}/versions/${finished.result_project_version_id}/files`,
           { accessToken }
         );
         const resultFile = files.find((f) => f.id === finished.result_file_id) ?? null;
         fileKind = resultFile?.kind ?? null;
-        if (resultFile && resultFile.kind === "model_glb") {
+        const glbFile = files.find((f) => f.kind === "model_glb");
+        if (glbFile) {
           const { download_url } = await apiFetch<{ download_url: string }>(
-            `${orgPath}/files/${resultFile.id}/download-url`,
+            `${orgPath}/files/${glbFile.id}/download-url`,
             { accessToken }
           );
           previewUrl = download_url;

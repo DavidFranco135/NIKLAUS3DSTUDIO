@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.domain.ai.ports import ImageInput
 from src.domain.ai.result_validation import validate_generation_result
 from src.domain.ai.spec import StructuredSpecification, TaskType
+from src.domain.mesh.operations import export_mesh, load_mesh
 from src.domain.mesh.quality_pipeline import run_quality_pipeline
 from src.domain.printability.analyzer import analyze_printability
 from src.domain.shared.file_hash import sha256_hex
@@ -180,7 +181,15 @@ def execute_job(
                 ],
             }
         result = replace(result, file_bytes=repaired_bytes, metadata=metadata)
+
+        preview_glb_bytes: bytes | None = None
+        try:
+            preview_glb_bytes = export_mesh(load_mesh(repaired_bytes, "model_stl"), "model_glb")
+        except Exception:  # noqa: BLE001 — the GLB preview is a nice-to-have; the STL
+            # deliverable above is what actually matters and must never be blocked by this.
+            preview_glb_bytes = None
     else:
+        preview_glb_bytes = None
         issues = validate_generation_result(result)
         if issues:
             error_message = "Resultado reprovado na validação: " + "; ".join(issues)
@@ -221,6 +230,27 @@ def execute_job(
                 )
                 project.active_version_id = version.id
                 result_version_id = version.id
+
+                if preview_glb_bytes is not None:
+                    preview_storage_key = f"org/{organization_id}/ai-jobs/{job.id}-preview.glb"
+                    storage.put_object(
+                        key=preview_storage_key,
+                        data=preview_glb_bytes,
+                        content_type="model/gltf-binary",
+                    )
+                    preview_file_asset = FileAssetRepository(db).create_uploaded(
+                        organization_id=organization_id,
+                        project_id=job.project_id,
+                        kind="model_glb",
+                        storage_key=preview_storage_key,
+                        mime_type="model/gltf-binary",
+                        size_bytes=len(preview_glb_bytes),
+                        sha256_hash=sha256_hex(preview_glb_bytes),
+                        uploaded_by=job.requested_by,
+                    )
+                    FileAssetRepository(db).attach_to_version(
+                        preview_file_asset, project_version_id=version.id
+                    )
     except Exception as exc:  # noqa: BLE001 — a real provider succeeded; don't crash the
         # worker/request over a storage/DB hiccup while persisting its result.
         db.rollback()
