@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { Plan, Subscription, UsageItem } from "@/lib/types";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 
 const STATUS_LABELS: Record<string, string> = {
   trialing: "Em teste",
@@ -122,10 +122,8 @@ export default function BillingPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <AppHeader />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
-        <h1 className="text-2xl font-semibold">Faturamento</h1>
+    <AppShell title="Faturamento">
+      <div className="mx-auto max-w-3xl space-y-6">
         {error && <p className="rounded bg-red-950 p-2 text-sm text-red-300">{error}</p>}
 
         {isLoading ? (
@@ -213,6 +211,6 @@ export default function BillingPage() {
           </>
         )}
       </div>
-    </main>
+    </AppShell>
   );
 }

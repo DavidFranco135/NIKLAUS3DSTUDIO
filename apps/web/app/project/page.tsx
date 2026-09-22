@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { inferFileKind } from "@/lib/file-kind";
 import type { AIJob, FileAsset, Project, ProjectVersion, RequestUploadResponse } from "@/lib/types";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 import { ModelViewer } from "@/components/ModelViewer";
 
 type VariantStatus = "generating" | "done" | "failed";
@@ -104,7 +104,7 @@ function ProjectDetailPageInner() {
     }
     if (status !== "authenticated") return;
     if (!projectId) {
-      router.replace("/dashboard");
+      router.replace("/projetos");
       return;
     }
     const timeoutId = setTimeout(loadAll, 0);
@@ -311,13 +311,9 @@ function ProjectDetailPageInner() {
   }
 
   return (
-    <main className="min-h-screen">
-      <AppHeader />
-      <div className="mx-auto max-w-5xl space-y-6 p-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{project.name}</h1>
-          {project.description && <p className="text-neutral-400">{project.description}</p>}
-        </div>
+    <AppShell title={project.name}>
+      <div className="mx-auto max-w-5xl space-y-6">
+        {project.description && <p className="text-neutral-400">{project.description}</p>}
 
         {error && <p className="rounded bg-red-950 p-2 text-sm text-red-300">{error}</p>}
         {message && <p className="rounded bg-green-950 p-2 text-sm text-green-300">{message}</p>}
@@ -551,6 +547,6 @@ function ProjectDetailPageInner() {
           </div>
         )}
       </div>
-    </main>
+    </AppShell>
   );
 }
