@@ -13,8 +13,10 @@ from src.domain.shared.exceptions import (
     InvalidCredentialsError,
     InvalidImageInputError,
     InvalidInventoryMovementError,
+    InvalidOrderTransitionError,
     InventoryItemNotFoundError,
     MaterialNotFoundError,
+    OrderNotFoundError,
     OrganizationNotFoundError,
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
@@ -52,6 +54,8 @@ _STATUS_BY_ERROR = {
     InvalidInventoryMovementError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     InsufficientStockError: status.HTTP_409_CONFLICT,
     CustomerNotFoundError: status.HTTP_404_NOT_FOUND,
+    OrderNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidOrderTransitionError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 

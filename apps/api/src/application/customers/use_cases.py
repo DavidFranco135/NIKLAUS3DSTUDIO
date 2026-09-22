@@ -6,6 +6,7 @@ from src.domain.shared.exceptions import CustomerNotFoundError
 from src.infrastructure.db.models import Customer
 from src.infrastructure.db.repositories import (
     CustomerRepository,
+    OrderRepository,
     ProjectRepository,
     QuoteRepository,
 )
@@ -82,13 +83,13 @@ def delete_customer(db: Session, *, organization_id: UUID, customer_id: UUID) ->
 
 
 def get_customer_history(db: Session, *, organization_id: UUID, customer_id: UUID) -> dict:
-    """Fase 13 ("CRUD + histórico"): o histórico hoje é só orçamentos e
+    """Passou a incluir `orders` na Fase 14 — antes disso (Fase 13) só havia
 
-    projetos vinculados — não há `orders` ainda (Fase 14), então não existe
-    pedido/entrega para listar por cliente por enquanto.
+    orçamentos e projetos vinculados.
     """
     get_customer(db, organization_id=organization_id, customer_id=customer_id)
     return {
         "quotes": QuoteRepository(db).list_for_customer(organization_id, customer_id),
         "projects": ProjectRepository(db).list_for_customer(organization_id, customer_id),
+        "orders": OrderRepository(db).list_for_customer(organization_id, customer_id),
     }

@@ -310,9 +310,9 @@ class InventoryMovement(Base):
     )
     type: Mapped[str] = mapped_column(String(20), nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric(14, 3, asdecimal=False))
-    # Sem FK para "orders" ainda (tabela não existe até a Fase de Pedidos) —
-    # coluna e constraint chegam juntas quando a tabela existir.
-    reference_order_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    reference_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("orders.id"), nullable=True
+    )
     unit_cost: Mapped[float | None] = mapped_column(Numeric(12, 4, asdecimal=False), nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -377,6 +377,60 @@ class Quote(Base):
         Numeric(12, 2, asdecimal=False), nullable=True
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("customers.id"), nullable=False, index=True
+    )
+    quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("quotes.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="quote")
+    total_amount: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False), default=0)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("orders.id"), nullable=False, index=True
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    project_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_versions.id"), nullable=True
+    )
+    # Sem FK para "machines" ainda (tabela não existe até a Fase 17) — coluna
+    # e constraint chegam juntas quando a tabela existir.
+    machine_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("materials.id"), nullable=True
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    unit_cost: Mapped[float | None] = mapped_column(Numeric(12, 4, asdecimal=False), nullable=True)
+    unit_price: Mapped[float | None] = mapped_column(Numeric(12, 4, asdecimal=False), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

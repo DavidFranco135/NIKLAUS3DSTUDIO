@@ -12,6 +12,7 @@ from src.interfaces.http.v1.schemas import (
     CreateCustomerRequest,
     CustomerHistoryResponse,
     CustomerResponse,
+    OrderResponse,
     ProjectResponse,
     QuoteResponse,
     UpdateCustomerRequest,
@@ -130,4 +131,5 @@ def get_customer_history(
     return CustomerHistoryResponse(
         quotes=[QuoteResponse.model_validate(q) for q in history["quotes"]],
         projects=[ProjectResponse.model_validate(p) for p in history["projects"]],
+        orders=[OrderResponse.model_validate(o) for o in history["orders"]],
     )

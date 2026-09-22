@@ -109,6 +109,7 @@ def create_movement(
             unit_cost=payload.unit_cost,
             notes=payload.notes,
             created_by=current_user.id,
+            reference_order_id=payload.reference_order_id,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc

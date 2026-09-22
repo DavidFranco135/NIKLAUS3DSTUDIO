@@ -13,6 +13,8 @@ from src.infrastructure.db.models import (
     InventoryItem,
     InventoryMovement,
     Material,
+    Order,
+    OrderItem,
     Organization,
     OrgMember,
     Project,
@@ -789,3 +791,108 @@ class CustomerRepository:
     def soft_delete(self, customer: Customer) -> None:
         customer.deleted_at = datetime.now(UTC)
         self.session.flush()
+
+
+class OrderRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, order_id: UUID) -> Order | None:
+        return self.session.scalar(
+            select(Order).where(Order.id == order_id, Order.organization_id == organization_id)
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Order]:
+        return list(
+            self.session.scalars(
+                select(Order)
+                .where(Order.organization_id == organization_id)
+                .order_by(Order.created_at.desc())
+            )
+        )
+
+    def list_for_customer(self, organization_id: UUID, customer_id: UUID) -> list[Order]:
+        return list(
+            self.session.scalars(
+                select(Order)
+                .where(
+                    Order.organization_id == organization_id, Order.customer_id == customer_id
+                )
+                .order_by(Order.created_at.desc())
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        customer_id: UUID,
+        quote_id: UUID | None,
+        total_amount: float,
+        notes: str | None,
+        created_by: UUID | None,
+    ) -> Order:
+        order = Order(
+            organization_id=organization_id,
+            customer_id=customer_id,
+            quote_id=quote_id,
+            total_amount=total_amount,
+            notes=notes,
+            created_by=created_by,
+        )
+        self.session.add(order)
+        self.session.flush()
+        return order
+
+    def update_status(self, order: Order, *, new_status: str) -> None:
+        order.status = new_status
+        self.session.flush()
+
+    def update_total_amount(self, order: Order, *, total_amount: float) -> None:
+        order.total_amount = total_amount
+        self.session.flush()
+
+
+class OrderItemRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, order_id: UUID, item_id: UUID) -> OrderItem | None:
+        return self.session.scalar(
+            select(OrderItem).where(OrderItem.id == item_id, OrderItem.order_id == order_id)
+        )
+
+    def list_for_order(self, order_id: UUID) -> list[OrderItem]:
+        return list(
+            self.session.scalars(
+                select(OrderItem)
+                .where(OrderItem.order_id == order_id)
+                .order_by(OrderItem.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        order_id: UUID,
+        organization_id: UUID,
+        project_version_id: UUID | None,
+        machine_id: UUID | None,
+        material_id: UUID | None,
+        quantity: int,
+        unit_cost: float | None,
+        unit_price: float | None,
+    ) -> OrderItem:
+        item = OrderItem(
+            order_id=order_id,
+            organization_id=organization_id,
+            project_version_id=project_version_id,
+            machine_id=machine_id,
+            material_id=material_id,
+            quantity=quantity,
+            unit_cost=unit_cost,
+            unit_price=unit_price,
+        )
+        self.session.add(item)
+        self.session.flush()
+        return item

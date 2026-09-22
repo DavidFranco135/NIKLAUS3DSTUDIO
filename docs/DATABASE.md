@@ -318,7 +318,7 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | created_by | UUID FK → users | |
 | created_at | TIMESTAMPTZ | |
 
-*(`materials`, `inventory_items` e `inventory_movements` implementadas na Fase 12 — ver ARCHITECTURE.md, nota "Status na Fase 12" após o Roadmap. `reference_order_id` em `inventory_movements` existe como coluna solta, sem `FOREIGN KEY`, porque `orders` ainda não existe (Fase 14); a constraint chega junto com essa tabela, mesmo padrão já usado para `quotes.customer_id` até a Fase 13 fechar essa lacuna. `density_g_cm3`/`cost_per_kg` em `materials` foram implementados como `NULL`-áveis — o desenho original não marcava `NOT NULL` explicitamente para eles.)*
+*(`materials`, `inventory_items` e `inventory_movements` implementadas na Fase 12 — ver ARCHITECTURE.md, nota "Status na Fase 12" após o Roadmap. `reference_order_id` em `inventory_movements` ficou como coluna solta, sem `FOREIGN KEY`, até a Fase 14 criar `orders` — a constraint foi adicionada então, numa migration própria, mesmo padrão usado para `quotes.customer_id` (Fase 11 → 13). `density_g_cm3`/`cost_per_kg` em `materials` foram implementados como `NULL`-áveis — o desenho original não marcava `NOT NULL` explicitamente para eles.)*
 
 ### cost_profiles
 
@@ -367,7 +367,10 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | status | TEXT NOT NULL DEFAULT 'quote' | quote / order / paid / production / printing / finishing / packaging / delivered / completed / cancelled |
 | total_amount | NUMERIC NOT NULL DEFAULT 0 | |
 | notes | TEXT NULL | |
+| created_by | UUID FK → users NULL | quem criou o pedido — mesmo padrão de auditoria de `quotes.created_by` (Fase 11), não estava no desenho original |
 | created_at, updated_at | TIMESTAMPTZ | |
+
+*(Implementada na Fase 14, junto com `order_items` e `domain/orders/` — ver ARCHITECTURE.md, nota "Status na Fase 14". `status` não tem `CHECK` no banco (SQLite) — a validação de transição válida é 100% em `domain/orders/status.py`, testada isoladamente.)*
 
 ### order_items
 
@@ -384,6 +387,8 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | unit_price | NUMERIC NULL | |
 | status | TEXT NOT NULL DEFAULT 'pending' | pending / printing / done / failed |
 | created_at, updated_at | TIMESTAMPTZ | |
+
+*(`machine_id` existe como coluna solta, sem `FOREIGN KEY`, porque `machines` ainda não existe — Fase 17; mesmo padrão adiado já usado antes para `quotes.customer_id`/`projects.customer_id`/`inventory_movements.reference_order_id`. `total_amount` de `orders` é recalculado por `domain/orders/totals.py::compute_total_amount` a cada item adicionado — nunca incrementado, para não acumular erro de arredondamento.)*
 
 ### financial_transactions
 

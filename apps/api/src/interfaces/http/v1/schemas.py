@@ -251,9 +251,66 @@ class QuoteResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateOrderRequest(BaseModel):
+    customer_id: UUID
+    quote_id: UUID | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class OrderResponse(BaseModel):
+    id: UUID
+    customer_id: UUID
+    quote_id: UUID | None
+    status: str
+    total_amount: float
+    notes: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TransitionOrderStatusRequest(BaseModel):
+    status: str = Field(
+        pattern="^(quote|order|paid|production|printing|finishing|packaging|delivered"
+        "|completed|cancelled)$"
+    )
+
+
+class CreateOrderItemRequest(BaseModel):
+    project_id: UUID | None = None
+    project_version_id: UUID | None = None
+    machine_id: UUID | None = None
+    material_id: UUID | None = None
+    quantity: int = Field(default=1, ge=1)
+    unit_cost: float | None = Field(default=None, ge=0)
+    unit_price: float | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _project_fields_go_together(self) -> "CreateOrderItemRequest":
+        if (self.project_id is None) != (self.project_version_id is None):
+            raise ValueError("Informe project_id e project_version_id juntos, ou nenhum dos dois.")
+        return self
+
+
+class OrderItemResponse(BaseModel):
+    id: UUID
+    order_id: UUID
+    project_version_id: UUID | None
+    machine_id: UUID | None
+    material_id: UUID | None
+    quantity: int
+    unit_cost: float | None
+    unit_price: float | None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CustomerHistoryResponse(BaseModel):
     quotes: list[QuoteResponse]
     projects: list[ProjectResponse]
+    orders: list[OrderResponse]
 
 
 class CreateMaterialRequest(BaseModel):
@@ -310,6 +367,7 @@ class CreateInventoryMovementRequest(BaseModel):
     quantity: float
     unit_cost: float | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=2000)
+    reference_order_id: UUID | None = None
 
 
 class InventoryMovementResponse(BaseModel):
@@ -319,6 +377,7 @@ class InventoryMovementResponse(BaseModel):
     quantity: float
     unit_cost: float | None
     notes: str | None
+    reference_order_id: UUID | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

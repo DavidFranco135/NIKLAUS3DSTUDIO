@@ -8,12 +8,17 @@ from src.domain.inventory.movement import (
     validate_movement_type,
     validate_quantity_sign,
 )
-from src.domain.shared.exceptions import InventoryItemNotFoundError, MaterialNotFoundError
+from src.domain.shared.exceptions import (
+    InventoryItemNotFoundError,
+    MaterialNotFoundError,
+    OrderNotFoundError,
+)
 from src.infrastructure.db.models import InventoryItem, InventoryMovement, Material
 from src.infrastructure.db.repositories import (
     InventoryItemRepository,
     InventoryMovementRepository,
     MaterialRepository,
+    OrderRepository,
 )
 
 
@@ -111,6 +116,11 @@ def create_movement(
     reference_order_id: UUID | None = None,
 ) -> InventoryMovement:
     item = get_inventory_item(db, organization_id=organization_id, item_id=item_id)
+
+    if reference_order_id is not None and OrderRepository(db).get(
+        organization_id, reference_order_id
+    ) is None:
+        raise OrderNotFoundError(str(reference_order_id))
 
     validate_movement_type(movement_type)
     validate_quantity_sign(movement_type, quantity)

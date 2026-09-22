@@ -130,3 +130,11 @@ class InsufficientStockError(DomainError):
 
 class CustomerNotFoundError(DomainError):
     pass
+
+
+class OrderNotFoundError(DomainError):
+    pass
+
+
+class InvalidOrderTransitionError(DomainError):
+    pass
