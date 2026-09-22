@@ -22,6 +22,11 @@ class S3StorageProvider:
                 connect_timeout=3,
                 read_timeout=5,
                 retries={"max_attempts": 1},
+                # R2 (e outros endpoints S3-compatíveis não-AWS) exigem endereçamento
+                # "path-style" (https://endpoint/bucket/key) — o default do boto3
+                # ("virtual-hosted style", https://bucket.endpoint/key) não é
+                # resolvido pelo R2 e falha com NoSuchBucket mesmo quando o bucket existe.
+                s3={"addressing_style": "path"},
             ),
         )
         self._bucket = settings.s3_bucket
