@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { inferFileKind } from "@/lib/file-kind";
@@ -10,9 +10,24 @@ import { AppHeader } from "@/components/AppHeader";
 import { ModelViewer } from "@/components/ModelViewer";
 
 export default function ProjectDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center">
+          <p className="text-neutral-400">Carregando…</p>
+        </main>
+      }
+    >
+      <ProjectDetailPageInner />
+    </Suspense>
+  );
+}
+
+function ProjectDetailPageInner() {
   const { status, accessToken, currentOrganizationId } = useAuth();
   const router = useRouter();
-  const { projectId } = useParams<{ projectId: string }>();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("id") ?? "";
 
   const [project, setProject] = useState<Project | null>(null);
   const [versions, setVersions] = useState<ProjectVersion[]>([]);
@@ -31,7 +46,7 @@ export default function ProjectDetailPage() {
   const orgPath = `/api/v1/organizations/${currentOrganizationId}/projects/${projectId}`;
 
   const loadAll = useCallback(async () => {
-    if (!accessToken || !currentOrganizationId) return;
+    if (!accessToken || !currentOrganizationId || !projectId) return;
     try {
       const [projectData, versionsData] = await Promise.all([
         apiFetch<Project>(orgPath, { accessToken }),
@@ -63,7 +78,7 @@ export default function ProjectDetailPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Falha ao carregar projeto.");
     }
-  }, [accessToken, currentOrganizationId, orgPath]);
+  }, [accessToken, currentOrganizationId, orgPath, projectId]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -71,9 +86,13 @@ export default function ProjectDetailPage() {
       return;
     }
     if (status !== "authenticated") return;
+    if (!projectId) {
+      router.replace("/dashboard");
+      return;
+    }
     const timeoutId = setTimeout(loadAll, 0);
     return () => clearTimeout(timeoutId);
-  }, [status, router, loadAll]);
+  }, [status, router, loadAll, projectId]);
 
   async function uploadAndConfirmFile(file: File, kind: string): Promise<string> {
     const uploadInfo = await apiFetch<RequestUploadResponse>(`${orgPath}/files/upload-url`, {

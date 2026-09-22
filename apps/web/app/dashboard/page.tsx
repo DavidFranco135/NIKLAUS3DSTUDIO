@@ -104,7 +104,7 @@ export default function DashboardPage() {
           <ul className="divide-y divide-neutral-800 rounded border border-neutral-800">
             {projects.map((project) => (
               <li key={project.id} className="p-4 hover:bg-neutral-900">
-                <Link href={`/projects/${project.id}`} className="flex items-center justify-between">
+                <Link href={`/project?id=${project.id}`} className="flex items-center justify-between">
                   <span>{project.name}</span>
                   <span className="text-sm text-neutral-500">{project.status}</span>
                 </Link>
