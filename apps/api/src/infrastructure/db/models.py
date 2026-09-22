@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -227,6 +227,81 @@ class AIJobAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ai_job: Mapped[AIJob] = relationship(back_populates="attempts")
+
+
+class Material(Base):
+    __tablename__ = "materials"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String(30), nullable=False)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
+    density_g_cm3: Mapped[float | None] = mapped_column(
+        Numeric(8, 4, asdecimal=False), nullable=True
+    )
+    cost_per_kg: Mapped[float | None] = mapped_column(
+        Numeric(12, 2, asdecimal=False), nullable=True
+    )
+    supplier: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class InventoryItem(Base):
+    __tablename__ = "inventory_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("materials.id"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    quantity_on_hand: Mapped[float] = mapped_column(Numeric(14, 3, asdecimal=False), default=0)
+    unit: Mapped[str] = mapped_column(String(10), nullable=False)
+    minimum_stock: Mapped[float] = mapped_column(Numeric(14, 3, asdecimal=False), default=0)
+    unit_cost: Mapped[float | None] = mapped_column(Numeric(12, 4, asdecimal=False), nullable=True)
+    supplier: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class InventoryMovement(Base):
+    __tablename__ = "inventory_movements"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    inventory_item_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("inventory_items.id"), nullable=False, index=True
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(String(20), nullable=False)
+    quantity: Mapped[float] = mapped_column(Numeric(14, 3, asdecimal=False))
+    # Sem FK para "orders" ainda (tabela não existe até a Fase de Pedidos) —
+    # coluna e constraint chegam juntas quando a tabela existir.
+    reference_order_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    unit_cost: Mapped[float | None] = mapped_column(Numeric(12, 4, asdecimal=False), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id"), nullable=True
+    )
+    # Python-side default (not server_default=func.now()) so ordering by
+    # created_at stays correct even for two movements inserted within the
+    # same second — SQLite's CURRENT_TIMESTAMP only has 1-second resolution,
+    # which made "newest first" history ties under fast successive inserts.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
 
 class CostProfile(Base):

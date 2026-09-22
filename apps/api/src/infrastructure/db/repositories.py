@@ -9,6 +9,9 @@ from src.infrastructure.db.models import (
     AIJobAttempt,
     CostProfile,
     FileAsset,
+    InventoryItem,
+    InventoryMovement,
+    Material,
     Organization,
     OrgMember,
     Project,
@@ -565,3 +568,141 @@ class QuoteRepository:
         self.session.add(quote)
         self.session.flush()
         return quote
+
+
+class MaterialRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, material_id: UUID) -> Material | None:
+        return self.session.scalar(
+            select(Material).where(
+                Material.id == material_id, Material.organization_id == organization_id
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Material]:
+        return list(
+            self.session.scalars(
+                select(Material)
+                .where(Material.organization_id == organization_id)
+                .order_by(Material.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        type: str,
+        color: str | None,
+        density_g_cm3: float | None,
+        cost_per_kg: float | None,
+        supplier: str | None,
+    ) -> Material:
+        material = Material(
+            organization_id=organization_id,
+            name=name,
+            type=type,
+            color=color,
+            density_g_cm3=density_g_cm3,
+            cost_per_kg=cost_per_kg,
+            supplier=supplier,
+        )
+        self.session.add(material)
+        self.session.flush()
+        return material
+
+
+class InventoryItemRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, item_id: UUID) -> InventoryItem | None:
+        return self.session.scalar(
+            select(InventoryItem).where(
+                InventoryItem.id == item_id, InventoryItem.organization_id == organization_id
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[InventoryItem]:
+        return list(
+            self.session.scalars(
+                select(InventoryItem)
+                .where(InventoryItem.organization_id == organization_id)
+                .order_by(InventoryItem.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        material_id: UUID | None,
+        name: str,
+        category: str,
+        unit: str,
+        minimum_stock: float,
+        unit_cost: float | None,
+        supplier: str | None,
+        initial_quantity: float,
+    ) -> InventoryItem:
+        item = InventoryItem(
+            organization_id=organization_id,
+            material_id=material_id,
+            name=name,
+            category=category,
+            unit=unit,
+            minimum_stock=minimum_stock,
+            unit_cost=unit_cost,
+            supplier=supplier,
+            quantity_on_hand=initial_quantity,
+        )
+        self.session.add(item)
+        self.session.flush()
+        return item
+
+    def update_quantity(self, item: InventoryItem, *, new_quantity: float) -> None:
+        item.quantity_on_hand = new_quantity
+        self.session.flush()
+
+
+class InventoryMovementRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def list_for_item(self, inventory_item_id: UUID) -> list[InventoryMovement]:
+        return list(
+            self.session.scalars(
+                select(InventoryMovement)
+                .where(InventoryMovement.inventory_item_id == inventory_item_id)
+                .order_by(InventoryMovement.created_at.desc())
+            )
+        )
+
+    def create(
+        self,
+        *,
+        inventory_item_id: UUID,
+        organization_id: UUID,
+        type: str,
+        quantity: float,
+        unit_cost: float | None,
+        notes: str | None,
+        created_by: UUID | None,
+        reference_order_id: UUID | None,
+    ) -> InventoryMovement:
+        movement = InventoryMovement(
+            inventory_item_id=inventory_item_id,
+            organization_id=organization_id,
+            type=type,
+            quantity=quantity,
+            unit_cost=unit_cost,
+            notes=notes,
+            created_by=created_by,
+            reference_order_id=reference_order_id,
+        )
+        self.session.add(movement)
+        self.session.flush()
+        return movement

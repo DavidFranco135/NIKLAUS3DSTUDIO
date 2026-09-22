@@ -218,6 +218,74 @@ class QuoteResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateMaterialRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    type: str = Field(min_length=2, max_length=30)
+    color: str | None = Field(default=None, max_length=50)
+    density_g_cm3: float | None = Field(default=None, gt=0)
+    cost_per_kg: float | None = Field(default=None, ge=0)
+    supplier: str | None = Field(default=None, max_length=200)
+
+
+class MaterialResponse(BaseModel):
+    id: UUID
+    name: str
+    type: str
+    color: str | None
+    density_g_cm3: float | None
+    cost_per_kg: float | None
+    supplier: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CreateInventoryItemRequest(BaseModel):
+    material_id: UUID | None = None
+    name: str = Field(min_length=2, max_length=200)
+    category: str = Field(pattern="^(filament|resin|component|packaging|spare_part)$")
+    unit: str = Field(pattern="^(g|kg|un)$")
+    minimum_stock: float = Field(default=0, ge=0)
+    unit_cost: float | None = Field(default=None, ge=0)
+    supplier: str | None = Field(default=None, max_length=200)
+    initial_quantity: float = Field(default=0, ge=0)
+
+
+class InventoryItemResponse(BaseModel):
+    id: UUID
+    material_id: UUID | None
+    name: str
+    category: str
+    quantity_on_hand: float
+    unit: str
+    minimum_stock: float
+    unit_cost: float | None
+    supplier: str | None
+    created_at: datetime
+    is_low_stock: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class CreateInventoryMovementRequest(BaseModel):
+    type: str = Field(pattern="^(entrada|saida|ajuste|consumo|perda)$")
+    quantity: float
+    unit_cost: float | None = Field(default=None, ge=0)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class InventoryMovementResponse(BaseModel):
+    id: UUID
+    inventory_item_id: UUID
+    type: str
+    quantity: float
+    unit_cost: float | None
+    notes: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class AIJobResponse(BaseModel):
     id: UUID
     project_id: UUID | None

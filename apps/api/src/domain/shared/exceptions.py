@@ -110,3 +110,19 @@ class InvalidCostInputsError(DomainError):
 
 class CannotDeleteDefaultCostProfileError(DomainError):
     pass
+
+
+class MaterialNotFoundError(DomainError):
+    pass
+
+
+class InventoryItemNotFoundError(DomainError):
+    pass
+
+
+class InvalidInventoryMovementError(DomainError):
+    pass
+
+
+class InsufficientStockError(DomainError):
+    pass

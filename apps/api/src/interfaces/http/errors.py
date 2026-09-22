@@ -7,9 +7,13 @@ from src.domain.shared.exceptions import (
     EmailAlreadyRegisteredError,
     FileAssetNotFoundError,
     FileNotUploadedError,
+    InsufficientStockError,
     InvalidCostInputsError,
     InvalidCredentialsError,
     InvalidImageInputError,
+    InvalidInventoryMovementError,
+    InventoryItemNotFoundError,
+    MaterialNotFoundError,
     OrganizationNotFoundError,
     ProjectNotFoundError,
     ProjectVersionNotFoundError,
@@ -42,6 +46,10 @@ _STATUS_BY_ERROR = {
     CostProfileNotFoundError: status.HTTP_404_NOT_FOUND,
     QuoteNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidCostInputsError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    MaterialNotFoundError: status.HTTP_404_NOT_FOUND,
+    InventoryItemNotFoundError: status.HTTP_404_NOT_FOUND,
+    InvalidInventoryMovementError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    InsufficientStockError: status.HTTP_409_CONFLICT,
 }
 
 

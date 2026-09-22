@@ -316,6 +316,8 @@ Catálogo/registro reutilizável de resultados (para reuso/cache — seção "cu
 | created_by | UUID FK → users | |
 | created_at | TIMESTAMPTZ | |
 
+*(`materials`, `inventory_items` e `inventory_movements` implementadas na Fase 12 — ver ARCHITECTURE.md, nota "Status na Fase 12" após o Roadmap. `reference_order_id` em `inventory_movements` existe como coluna solta, sem `FOREIGN KEY`, porque `orders` ainda não existe (Fase 14); a constraint chega junto com essa tabela, mesmo padrão já usado para `quotes.customer_id`. `density_g_cm3`/`cost_per_kg` em `materials` foram implementados como `NULL`-áveis — o desenho original não marcava `NOT NULL` explicitamente para eles.)*
+
 ### cost_profiles
 
 | Coluna | Tipo | Notas |
