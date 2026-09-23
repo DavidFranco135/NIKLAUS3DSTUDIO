@@ -20,7 +20,6 @@ export default function MateriaisPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [color, setColor] = useState("");
-  const [density, setDensity] = useState("");
   const [costPerKg, setCostPerKg] = useState("");
   const [supplier, setSupplier] = useState("");
 
@@ -62,7 +61,6 @@ export default function MateriaisPage() {
           name,
           type,
           color: color || null,
-          density_g_cm3: density ? Number(density) : null,
           cost_per_kg: costPerKg ? Number(costPerKg) : null,
           supplier: supplier || null,
         }),
@@ -70,7 +68,6 @@ export default function MateriaisPage() {
       setName("");
       setType("");
       setColor("");
-      setDensity("");
       setCostPerKg("");
       setSupplier("");
       setShowForm(false);
@@ -113,7 +110,6 @@ export default function MateriaisPage() {
             <input required placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input required placeholder="Tipo (ex: PLA, PETG)" value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input placeholder="Cor" value={color} onChange={(e) => setColor(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <input type="number" step="0.01" placeholder="Densidade (g/cm³)" value={density} onChange={(e) => setDensity(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input type="number" step="0.01" placeholder="Custo por kg (R$)" value={costPerKg} onChange={(e) => setCostPerKg(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input placeholder="Fornecedor" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <button type="submit" disabled={isCreating} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
@@ -129,7 +125,6 @@ export default function MateriaisPage() {
                 <th className="px-4 py-3 font-medium">Nome</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
                 <th className="px-4 py-3 font-medium">Cor</th>
-                <th className="px-4 py-3 font-medium">Densidade</th>
                 <th className="px-4 py-3 font-medium">Custo/kg</th>
                 <th className="px-4 py-3 font-medium">Fornecedor</th>
               </tr>
@@ -137,11 +132,11 @@ export default function MateriaisPage() {
             <tbody className="divide-y divide-neutral-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
                 </tr>
               ) : materials.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Nenhum material cadastrado.</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum material cadastrado.</td>
                 </tr>
               ) : (
                 materials.map((m) => (
@@ -149,7 +144,6 @@ export default function MateriaisPage() {
                     <td className="px-4 py-3">{m.name}</td>
                     <td className="px-4 py-3">{m.type}</td>
                     <td className="px-4 py-3">{m.color ?? "—"}</td>
-                    <td className="px-4 py-3">{m.density_g_cm3 ?? "—"}</td>
                     <td className="px-4 py-3">{formatCurrency(m.cost_per_kg)}</td>
                     <td className="px-4 py-3">{m.supplier ?? "—"}</td>
                   </tr>
