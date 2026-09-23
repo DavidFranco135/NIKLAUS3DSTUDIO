@@ -289,6 +289,7 @@ class TransitionOrderStatusRequest(BaseModel):
 class CreateOrderItemRequest(BaseModel):
     project_id: UUID | None = None
     project_version_id: UUID | None = None
+    product_id: UUID | None = None
     machine_id: UUID | None = None
     material_id: UUID | None = None
     quantity: int = Field(default=1, ge=1)
@@ -306,6 +307,7 @@ class OrderItemResponse(BaseModel):
     id: UUID
     order_id: UUID
     project_version_id: UUID | None
+    product_id: UUID | None
     machine_id: UUID | None
     material_id: UUID | None
     quantity: int
@@ -343,6 +345,50 @@ class MaterialResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProductMaterialInput(BaseModel):
+    material_id: UUID
+    quantity_g: float = Field(gt=0)
+
+
+class CreateProductRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    print_time_hours: float | None = Field(default=None, ge=0)
+    machine_id: UUID | None = None
+    materials: list[ProductMaterialInput] = Field(default_factory=list)
+
+
+class ProductMaterialResponse(BaseModel):
+    material_id: UUID
+    quantity_g: float
+
+
+class ProductResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    print_time_hours: float | None
+    machine_id: UUID | None
+    is_active: bool
+    created_at: datetime
+    materials: list[ProductMaterialResponse] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class ProductCostResponse(BaseModel):
+    material_cost: float
+    waste_cost: float
+    energy_cost: float
+    machine_cost: float
+    labor_cost: float
+    packaging_cost: float
+    fees: float
+    production_cost: float
+    tax_amount: float
+    suggested_price: float
 
 
 class CreateInventoryItemRequest(BaseModel):

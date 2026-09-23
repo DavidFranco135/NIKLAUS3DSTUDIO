@@ -22,6 +22,8 @@ from src.infrastructure.db.models import (
     OrgMember,
     Plan,
     PlanEntitlement,
+    Product,
+    ProductMaterial,
     Project,
     ProjectVersion,
     Quote,
@@ -683,6 +685,69 @@ class MaterialRepository:
         return material
 
 
+class ProductRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, organization_id: UUID, product_id: UUID) -> Product | None:
+        return self.session.scalar(
+            select(Product).where(
+                Product.id == product_id, Product.organization_id == organization_id
+            )
+        )
+
+    def list_for_org(self, organization_id: UUID) -> list[Product]:
+        return list(
+            self.session.scalars(
+                select(Product)
+                .where(Product.organization_id == organization_id)
+                .order_by(Product.created_at)
+            )
+        )
+
+    def create(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+        description: str | None,
+        print_time_hours: float | None,
+        machine_id: UUID | None,
+    ) -> Product:
+        product = Product(
+            organization_id=organization_id,
+            name=name,
+            description=description,
+            print_time_hours=print_time_hours,
+            machine_id=machine_id,
+        )
+        self.session.add(product)
+        self.session.flush()
+        return product
+
+
+class ProductMaterialRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def list_for_product(self, product_id: UUID) -> list[ProductMaterial]:
+        return list(
+            self.session.scalars(
+                select(ProductMaterial).where(ProductMaterial.product_id == product_id)
+            )
+        )
+
+    def create(
+        self, *, product_id: UUID, material_id: UUID, quantity_g: float
+    ) -> ProductMaterial:
+        line = ProductMaterial(
+            product_id=product_id, material_id=material_id, quantity_g=quantity_g
+        )
+        self.session.add(line)
+        self.session.flush()
+        return line
+
+
 class InventoryItemRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -911,6 +976,7 @@ class OrderItemRepository:
         order_id: UUID,
         organization_id: UUID,
         project_version_id: UUID | None,
+        product_id: UUID | None,
         machine_id: UUID | None,
         material_id: UUID | None,
         quantity: int,
@@ -921,6 +987,7 @@ class OrderItemRepository:
             order_id=order_id,
             organization_id=organization_id,
             project_version_id=project_version_id,
+            product_id=product_id,
             machine_id=machine_id,
             material_id=material_id,
             quantity=quantity,

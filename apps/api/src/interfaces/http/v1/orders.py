@@ -115,6 +115,7 @@ def add_order_item(
             order_id=order_id,
             project_id=payload.project_id,
             project_version_id=payload.project_version_id,
+            product_id=payload.product_id,
             machine_id=payload.machine_id,
             material_id=payload.material_id,
             quantity=payload.quantity,

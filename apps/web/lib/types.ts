@@ -184,6 +184,7 @@ export type OrderItem = {
   id: string;
   order_id: string;
   project_version_id: string | null;
+  product_id: string | null;
   machine_id: string | null;
   material_id: string | null;
   quantity: number;
@@ -276,6 +277,35 @@ export type Quote = {
   final_price: number | null;
   status: string;
   created_at: string;
+};
+
+export type ProductMaterialLine = {
+  material_id: string;
+  quantity_g: number;
+};
+
+export type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  print_time_hours: number | null;
+  machine_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  materials: ProductMaterialLine[];
+};
+
+export type ProductCost = {
+  material_cost: number;
+  waste_cost: number;
+  energy_cost: number;
+  machine_cost: number;
+  labor_cost: number;
+  packaging_cost: number;
+  fees: number;
+  production_cost: number;
+  tax_amount: number;
+  suggested_price: number;
 };
 
 export type DashboardData = {

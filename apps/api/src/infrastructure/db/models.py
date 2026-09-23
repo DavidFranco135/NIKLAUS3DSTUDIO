@@ -276,6 +276,49 @@ class Material(Base):
     )
 
 
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    print_time_hours: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    machine_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("machines.id"), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProductMaterial(Base):
+    """One BOM line: how many grams of a given material one unit of the
+
+    product consumes. `compute_product_cost` (application/products/use_cases.py)
+    sums these against each material's `cost_per_kg` to get the product's
+    material_cost, which then feeds the same deterministic pricing engine
+    used by the standalone calculator (domain/calculator/engine.py).
+    """
+
+    __tablename__ = "product_materials"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("products.id"), nullable=False, index=True
+    )
+    material_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("materials.id"), nullable=False, index=True
+    )
+    quantity_g: Mapped[float] = mapped_column(Numeric(12, 3, asdecimal=False), nullable=False)
+
+
 class InventoryItem(Base):
     __tablename__ = "inventory_items"
 
@@ -421,6 +464,9 @@ class OrderItem(Base):
     )
     project_version_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("project_versions.id"), nullable=True
+    )
+    product_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("products.id"), nullable=True, index=True
     )
     machine_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("machines.id"), nullable=True

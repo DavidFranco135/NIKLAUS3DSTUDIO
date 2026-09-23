@@ -116,6 +116,10 @@ class MaterialNotFoundError(DomainError):
     pass
 
 
+class ProductNotFoundError(DomainError):
+    pass
+
+
 class InventoryItemNotFoundError(DomainError):
     pass
 

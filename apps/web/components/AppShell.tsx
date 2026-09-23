@@ -105,6 +105,15 @@ function IconLayers({ className }: { className?: string }) {
   );
 }
 
+function IconTag({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+      <path d="M11.5 3H5a2 2 0 0 0-2 2v6.5a2 2 0 0 0 .59 1.41l8.5 8.5a2 2 0 0 0 2.82 0l6.5-6.5a2 2 0 0 0 0-2.82l-8.5-8.5A2 2 0 0 0 11.5 3Z" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function IconCard({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
@@ -117,6 +126,7 @@ function IconCard({ className }: { className?: string }) {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Painel", icon: IconHome },
+  { href: "/produtos", label: "Produtos", icon: IconTag },
   { href: "/projetos", label: "Projetos", icon: IconBox },
   { href: "/pedidos", label: "Pedidos", icon: IconClipboard },
   { href: "/clientes", label: "Clientes", icon: IconUsers },

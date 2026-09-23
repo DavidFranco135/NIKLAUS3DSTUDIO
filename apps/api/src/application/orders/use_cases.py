@@ -6,6 +6,7 @@ from src.application.customers.use_cases import get_customer
 from src.application.financial.use_cases import record_order_paid
 from src.application.inventory.use_cases import get_material
 from src.application.machines.use_cases import get_machine
+from src.application.products.use_cases import get_product
 from src.application.projects.use_cases import get_project
 from src.domain.orders.status import validate_transition
 from src.domain.orders.totals import OrderItemTotal, compute_total_amount
@@ -96,6 +97,7 @@ def add_order_item(
     order_id: UUID,
     project_id: UUID | None,
     project_version_id: UUID | None,
+    product_id: UUID | None,
     machine_id: UUID | None,
     material_id: UUID | None,
     quantity: int,
@@ -112,6 +114,9 @@ def add_order_item(
         if version is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
 
+    if product_id is not None:
+        get_product(db, organization_id=organization_id, product_id=product_id)
+
     if material_id is not None:
         get_material(db, organization_id=organization_id, material_id=material_id)
 
@@ -123,6 +128,7 @@ def add_order_item(
         order_id=order.id,
         organization_id=organization_id,
         project_version_id=project_version_id,
+        product_id=product_id,
         machine_id=machine_id,
         material_id=material_id,
         quantity=quantity,
