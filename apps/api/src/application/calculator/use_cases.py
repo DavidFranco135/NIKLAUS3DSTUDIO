@@ -81,6 +81,11 @@ def create_quote(
     machine_id: UUID | None = None,
     energy_kwh: float,
     labor_hours: float,
+    piece_name: str | None = None,
+    printer_name: str | None = None,
+    weight_g: float | None = None,
+    quantity: int = 1,
+    profit_margin_percentage: float | None = None,
 ) -> Quote:
     profile = get_cost_profile(db, organization_id=organization_id, cost_profile_id=cost_profile_id)
 
@@ -115,7 +120,11 @@ def create_quote(
             packaging_cost_flat=profile.packaging_cost_flat,
             waste_percentage=profile.waste_percentage,
             fees_percentage=profile.fees_percentage,
-            profit_margin_percentage=profile.profit_margin_percentage,
+            profit_margin_percentage=(
+                profit_margin_percentage
+                if profit_margin_percentage is not None
+                else profile.profit_margin_percentage
+            ),
             tax_percentage=profile.tax_percentage or 0.0,
         ),
     )
@@ -126,6 +135,10 @@ def create_quote(
         project_version_id=project_version_id,
         customer_id=customer_id,
         created_by=created_by,
+        piece_name=piece_name,
+        printer_name=printer_name,
+        weight_g=weight_g,
+        quantity=quantity,
         cost_breakdown_snapshot=asdict(breakdown),
         production_cost=breakdown.production_cost,
         suggested_price=breakdown.suggested_price,

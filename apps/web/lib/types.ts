@@ -271,6 +271,10 @@ export type Quote = {
   cost_profile_id: string;
   project_version_id: string | null;
   customer_id: string | null;
+  piece_name: string | null;
+  printer_name: string | null;
+  weight_g: number | null;
+  quantity: number;
   cost_breakdown_snapshot: Record<string, unknown>;
   production_cost: number;
   suggested_price: number;

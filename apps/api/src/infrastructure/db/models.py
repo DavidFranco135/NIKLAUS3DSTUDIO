@@ -414,6 +414,10 @@ class Quote(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id"), nullable=True
     )
+    piece_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    printer_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    weight_g: Mapped[float | None] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=True)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     cost_breakdown_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     production_cost: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
     suggested_price: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))

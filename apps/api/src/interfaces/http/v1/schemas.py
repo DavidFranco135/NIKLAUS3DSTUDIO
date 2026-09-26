@@ -230,6 +230,11 @@ class CreateQuoteRequest(BaseModel):
     machine_id: UUID | None = None
     energy_kwh: float = Field(ge=0)
     labor_hours: float = Field(ge=0)
+    piece_name: str | None = Field(default=None, max_length=200)
+    printer_name: str | None = Field(default=None, max_length=200)
+    weight_g: float | None = Field(default=None, ge=0)
+    quantity: int = Field(default=1, ge=1)
+    profit_margin_percentage: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _project_fields_go_together(self) -> "CreateQuoteRequest":
@@ -251,6 +256,10 @@ class QuoteResponse(BaseModel):
     cost_profile_id: UUID
     project_version_id: UUID | None
     customer_id: UUID | None
+    piece_name: str | None
+    printer_name: str | None
+    weight_g: float | None
+    quantity: int
     cost_breakdown_snapshot: dict
     production_cost: float
     suggested_price: float

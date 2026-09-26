@@ -100,6 +100,11 @@ def create_quote(
             machine_id=payload.machine_id,
             energy_kwh=payload.energy_kwh,
             labor_hours=payload.labor_hours,
+            piece_name=payload.piece_name,
+            printer_name=payload.printer_name,
+            weight_g=payload.weight_g,
+            quantity=payload.quantity,
+            profit_margin_percentage=payload.profit_margin_percentage,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc

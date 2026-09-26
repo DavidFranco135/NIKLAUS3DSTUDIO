@@ -114,6 +114,14 @@ function IconTag({ className }: { className?: string }) {
   );
 }
 
+function IconPricing({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+      <path d="M3 12h4l3-8 4 16 3-8h4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function IconCard({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
@@ -133,6 +141,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/estoque", label: "Estoque", icon: IconArchive },
   { href: "/financeiro", label: "Financeiro", icon: IconDollar },
   { href: "/calculadora", label: "Calculadora", icon: IconCalculator },
+  { href: "/precificacao", label: "Precificação", icon: IconPricing },
   { href: "/maquinas", label: "Máquinas", icon: IconCpu },
   { href: "/materiais", label: "Materiais", icon: IconLayers },
   { href: "/billing", label: "Faturamento", icon: IconCard },
