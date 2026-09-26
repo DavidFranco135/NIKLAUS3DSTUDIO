@@ -7,7 +7,35 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { calculatePricing } from "@/lib/pricing";
 import type { CostProfile, Machine, Material, Quote } from "@/lib/types";
+import type { PricingBreakdown } from "@/lib/pricing";
 import { AppShell } from "@/components/AppShell";
+
+function CostBreakdownList({ breakdown }: { breakdown: PricingBreakdown }) {
+  return (
+    <dl className="grid grid-cols-2 gap-y-2 text-sm">
+      <dt className="text-neutral-500">Custo do material</dt>
+      <dd className="text-right">{formatCurrency(breakdown.materialCost)}</dd>
+      <dt className="text-neutral-500">Desperdício</dt>
+      <dd className="text-right">{formatCurrency(breakdown.wasteCost)}</dd>
+      <dt className="text-neutral-500">Energia</dt>
+      <dd className="text-right">{formatCurrency(breakdown.energyCost)}</dd>
+      <dt className="text-neutral-500">Depreciação da máquina</dt>
+      <dd className="text-right">{formatCurrency(breakdown.machineCost)}</dd>
+      <dt className="text-neutral-500">Mão de obra</dt>
+      <dd className="text-right">{formatCurrency(breakdown.laborCost)}</dd>
+      <dt className="text-neutral-500">Embalagem</dt>
+      <dd className="text-right">{formatCurrency(breakdown.packagingCost)}</dd>
+      <dt className="text-neutral-500">Taxas (marketplace/pagamento)</dt>
+      <dd className="text-right">{formatCurrency(breakdown.fees)}</dd>
+      <dt className="border-t border-neutral-800 pt-2 font-medium text-neutral-300">Custo de produção</dt>
+      <dd className="border-t border-neutral-800 pt-2 text-right font-medium">{formatCurrency(breakdown.productionCost)}</dd>
+      <dt className="text-neutral-500">Imposto</dt>
+      <dd className="text-right">{formatCurrency(breakdown.taxAmount)}</dd>
+      <dt className="font-medium text-green-400">Preço de venda sugerido</dt>
+      <dd className="text-right font-medium text-green-400">{formatCurrency(breakdown.suggestedPrice)}</dd>
+    </dl>
+  );
+}
 
 type TabKey = "impressora" | "peca" | "resultado" | "salvas";
 
@@ -443,10 +471,16 @@ export default function PrecificacaoPage() {
                       <p className="mt-2 text-xs text-neutral-500">
                         Total para {quantityNum} peça(s): {formatCurrency(breakdown.suggestedPrice * quantityNum)}
                       </p>
+
+                      <div className="mt-4 border-t border-neutral-800 pt-4">
+                        <h3 className="mb-2 text-xs font-medium text-neutral-400">Resumo dos custos</h3>
+                        <CostBreakdownList breakdown={breakdown} />
+                      </div>
+
                       <button
                         onClick={handleSavePiece}
                         disabled={!canSave || isSaving}
-                        className="mt-3 w-full rounded bg-purple-600 px-4 py-2 font-medium hover:bg-purple-500 disabled:opacity-50"
+                        className="mt-4 w-full rounded bg-purple-600 px-4 py-2 font-medium hover:bg-purple-500 disabled:opacity-50"
                       >
                         {isSaving ? "Salvando…" : "Salvar peça calculada"}
                       </button>
@@ -467,28 +501,7 @@ export default function PrecificacaoPage() {
                       <h2 className="mb-3 text-sm font-medium text-neutral-300">
                         {pieceName || "Peça sem nome"}
                       </h2>
-                      <dl className="grid grid-cols-2 gap-y-2 text-sm">
-                        <dt className="text-neutral-500">Custo do material</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.materialCost)}</dd>
-                        <dt className="text-neutral-500">Desperdício</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.wasteCost)}</dd>
-                        <dt className="text-neutral-500">Energia</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.energyCost)}</dd>
-                        <dt className="text-neutral-500">Depreciação da máquina</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.machineCost)}</dd>
-                        <dt className="text-neutral-500">Mão de obra</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.laborCost)}</dd>
-                        <dt className="text-neutral-500">Embalagem</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.packagingCost)}</dd>
-                        <dt className="text-neutral-500">Taxas (marketplace/pagamento)</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.fees)}</dd>
-                        <dt className="border-t border-neutral-800 pt-2 font-medium text-neutral-300">Custo de produção</dt>
-                        <dd className="border-t border-neutral-800 pt-2 text-right font-medium">{formatCurrency(breakdown.productionCost)}</dd>
-                        <dt className="text-neutral-500">Imposto</dt>
-                        <dd className="text-right">{formatCurrency(breakdown.taxAmount)}</dd>
-                        <dt className="font-medium text-green-400">Preço de venda sugerido</dt>
-                        <dd className="text-right font-medium text-green-400">{formatCurrency(breakdown.suggestedPrice)}</dd>
-                      </dl>
+                      <CostBreakdownList breakdown={breakdown} />
                     </div>
                   )}
                 </div>
