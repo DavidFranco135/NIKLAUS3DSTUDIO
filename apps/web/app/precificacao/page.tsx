@@ -13,7 +13,7 @@ import { AppShell } from "@/components/AppShell";
 function CostBreakdownList({ breakdown }: { breakdown: PricingBreakdown }) {
   return (
     <dl className="grid grid-cols-2 gap-y-2 text-sm">
-      <dt className="text-neutral-500">Custo do material</dt>
+      <dt className="text-neutral-500">Material + itens adicionais</dt>
       <dd className="text-right">{formatCurrency(breakdown.materialCost)}</dd>
       <dt className="text-neutral-500">Desperdício</dt>
       <dd className="text-right">{formatCurrency(breakdown.wasteCost)}</dd>
@@ -83,6 +83,7 @@ export default function PrecificacaoPage() {
   const [marginPercent, setMarginPercent] = useState("40");
   const [laborHours, setLaborHours] = useState("0");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [extraItems, setExtraItems] = useState<{ name: string; cost: string }[]>([]);
 
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
 
@@ -144,6 +145,18 @@ export default function PrecificacaoPage() {
     }
   }
 
+  function addExtraItem() {
+    setExtraItems((items) => [...items, { name: "", cost: "" }]);
+  }
+
+  function updateExtraItem(index: number, patch: Partial<{ name: string; cost: string }>) {
+    setExtraItems((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeExtraItem(index: number) {
+    setExtraItems((items) => items.filter((_, i) => i !== index));
+  }
+
   async function handleCreatePrinter(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
@@ -194,7 +207,8 @@ export default function PrecificacaoPage() {
       ? (selectedPrinter.power_watts / 1000) * printTimeHoursNum
       : 0;
 
-  const materialCost = (weightGNum / 1000) * costPerKgNum;
+  const extraItemsCost = extraItems.reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
+  const materialCost = (weightGNum / 1000) * costPerKgNum + extraItemsCost;
 
   const breakdown = defaultCostProfile
     ? calculatePricing(
@@ -246,6 +260,7 @@ export default function PrecificacaoPage() {
       });
       setMessage("Peça salva na lista.");
       setPieceName("");
+      setExtraItems([]);
       await load();
       setActiveTab("salvas");
     } catch (err) {
@@ -411,6 +426,45 @@ export default function PrecificacaoPage() {
                       <div className="sm:col-span-2">
                         <label className="mb-1 block text-xs text-neutral-500">Custo do material por kg (R$)</label>
                         <input type="number" step="0.01" value={costPerKg} onChange={(e) => setCostPerKg(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-2">
+                        <label className="block text-xs text-neutral-500">
+                          Itens adicionais (embalagem, argola, etiqueta, etc.)
+                        </label>
+                        {extraItems.map((item, index) => (
+                          <div key={index} className="flex gap-2">
+                            <input
+                              placeholder="Nome (ex: Embalagem)"
+                              value={item.name}
+                              onChange={(e) => updateExtraItem(index, { name: e.target.value })}
+                              className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                            />
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Custo (R$)"
+                              value={item.cost}
+                              onChange={(e) => updateExtraItem(index, { cost: e.target.value })}
+                              className="w-28 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeExtraItem(index)}
+                              className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:border-red-700 hover:text-red-400"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={addExtraItem} className="text-sm text-blue-400 hover:underline">
+                          + Adicionar item
+                        </button>
+                        {extraItemsCost > 0 && (
+                          <p className="text-xs text-neutral-500">
+                            Subtotal de itens adicionais: {formatCurrency(extraItemsCost)}
+                          </p>
+                        )}
                       </div>
 
                       <div className="sm:col-span-2">
