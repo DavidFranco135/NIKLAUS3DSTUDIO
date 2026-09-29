@@ -439,6 +439,17 @@ export default function PrecificacaoPage() {
           {error && <p className="rounded bg-red-950 p-2 text-sm text-red-300">{error}</p>}
           {message && <p className="rounded bg-green-950 p-2 text-sm text-green-300">{message}</p>}
 
+          <div className="flex justify-end">
+            <a
+              href="/precificacao-publica"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-400 hover:underline"
+            >
+              Link público da calculadora ↗
+            </a>
+          </div>
+
           <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
             <div className="flex gap-1 border-b border-neutral-800">
               {TABS.map((tab) => (
