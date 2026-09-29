@@ -68,24 +68,6 @@ function IconDollar({ className }: { className?: string }) {
   );
 }
 
-function IconCalculator({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
-      <rect x="5" y="2.5" width="14" height="19" rx="2" />
-      <path d="M8 6.5h8" strokeLinecap="round" />
-      <circle cx="8.3" cy="11" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="11" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="15.7" cy="11" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="8.3" cy="14.5" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="14.5" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="15.7" cy="14.5" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="8.3" cy="18" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="18" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="15.7" cy="18" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 function IconCpu({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
@@ -140,7 +122,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/clientes", label: "Clientes", icon: IconUsers },
   { href: "/estoque", label: "Estoque", icon: IconArchive },
   { href: "/financeiro", label: "Financeiro", icon: IconDollar },
-  { href: "/calculadora", label: "Calculadora", icon: IconCalculator },
   { href: "/precificacao", label: "Precificação", icon: IconPricing },
   { href: "/maquinas", label: "Máquinas", icon: IconCpu },
   { href: "/materiais", label: "Materiais", icon: IconLayers },

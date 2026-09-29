@@ -188,7 +188,7 @@ export default function ProdutosPage() {
         )}
         {costProfiles.length === 0 && !isLoading && (
           <p className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-4 py-3 text-sm text-yellow-300">
-            Cadastre um perfil de custo na aba Calculadora para ver o custo/preço calculado aqui.
+            Cadastre um perfil de custo na aba Precificação (Perfil de custo) para ver o custo/preço calculado aqui.
           </p>
         )}
 

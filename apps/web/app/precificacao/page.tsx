@@ -37,10 +37,11 @@ function CostBreakdownList({ breakdown }: { breakdown: PricingBreakdown }) {
   );
 }
 
-type TabKey = "impressora" | "peca" | "resultado" | "salvas";
+type TabKey = "impressora" | "perfil" | "peca" | "resultado" | "salvas";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "impressora", label: "Impressora" },
+  { key: "perfil", label: "Perfil de custo" },
   { key: "peca", label: "Peça" },
   { key: "resultado", label: "Resultado" },
   { key: "salvas", label: "Peças salvas" },
@@ -69,6 +70,20 @@ export default function PrecificacaoPage() {
   const [newPrinterCostPerHour, setNewPrinterCostPerHour] = useState("");
   const [newPrinterPowerWatts, setNewPrinterPowerWatts] = useState("");
   const [isSavingPrinter, setIsSavingPrinter] = useState(false);
+
+  // --- Perfil de custo tab: cost profile CRUD ---
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [energyCost, setEnergyCost] = useState("0.9");
+  const [laborCost, setLaborCost] = useState("20");
+  const [packagingCost, setPackagingCost] = useState("2");
+  const [wastePct, setWastePct] = useState("5");
+  const [feesPct, setFeesPct] = useState("0");
+  const [profitPct, setProfitPct] = useState("40");
+  const [taxPct, setTaxPct] = useState("0");
+  const [isDefault, setIsDefault] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // --- Peça tab: the pricing form ---
   const [printerId, setPrinterId] = useState("");
@@ -190,6 +205,81 @@ export default function PrecificacaoPage() {
       setError(err instanceof ApiError ? err.message : "Falha ao salvar impressora.");
     } finally {
       setIsSavingPrinter(false);
+    }
+  }
+
+  function resetProfileForm() {
+    setProfileName("");
+    setEnergyCost("0.9");
+    setLaborCost("20");
+    setPackagingCost("2");
+    setWastePct("5");
+    setFeesPct("0");
+    setProfitPct("40");
+    setTaxPct("0");
+    setIsDefault(false);
+    setEditingProfileId(null);
+    setShowProfileForm(false);
+  }
+
+  function startEditProfile(p: CostProfile) {
+    setEditingProfileId(p.id);
+    setProfileName(p.name);
+    setEnergyCost(String(p.energy_cost_per_kwh));
+    setLaborCost(String(p.labor_cost_per_hour));
+    setPackagingCost(String(p.packaging_cost_flat));
+    setWastePct(String(p.waste_percentage));
+    setFeesPct(String(p.fees_percentage));
+    setProfitPct(String(p.profit_margin_percentage));
+    setTaxPct(p.tax_percentage != null ? String(p.tax_percentage) : "0");
+    setIsDefault(p.is_default);
+    setShowProfileForm(true);
+  }
+
+  async function handleSubmitProfile(event: React.FormEvent) {
+    event.preventDefault();
+    if (!accessToken) return;
+    setIsSavingProfile(true);
+    setError(null);
+    try {
+      const body = JSON.stringify({
+        name: profileName,
+        energy_cost_per_kwh: Number(energyCost),
+        labor_cost_per_hour: Number(laborCost),
+        packaging_cost_flat: Number(packagingCost),
+        waste_percentage: Number(wastePct),
+        fees_percentage: Number(feesPct),
+        profit_margin_percentage: Number(profitPct),
+        tax_percentage: taxPct ? Number(taxPct) : null,
+        is_default: isDefault,
+      });
+      if (editingProfileId) {
+        await apiFetch(`${orgPath}/cost-profiles/${editingProfileId}`, {
+          method: "PATCH",
+          accessToken,
+          body,
+        });
+      } else {
+        await apiFetch(`${orgPath}/cost-profiles`, { method: "POST", accessToken, body });
+      }
+      resetProfileForm();
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar perfil de custo.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
+  async function handleDeleteProfile(p: CostProfile) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o perfil de custo "${p.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/cost-profiles/${p.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir perfil de custo.");
     }
   }
 
@@ -423,12 +513,81 @@ export default function PrecificacaoPage() {
                 </div>
               )}
 
+              {activeTab === "perfil" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-neutral-500">
+                      {costProfiles.length} perfil(is) de custo cadastrado(s)
+                    </p>
+                    <button
+                      onClick={() => (showProfileForm ? resetProfileForm() : setShowProfileForm(true))}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
+                    >
+                      {showProfileForm ? "Cancelar" : "+ Novo perfil"}
+                    </button>
+                  </div>
+
+                  {showProfileForm && (
+                    <form
+                      onSubmit={handleSubmitProfile}
+                      className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
+                    >
+                      <input required placeholder="Nome do perfil" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-2" />
+                      <input type="number" step="0.01" placeholder="Energia (R$/kWh)" value={energyCost} onChange={(e) => setEnergyCost(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Mão de obra (R$/h)" value={laborCost} onChange={(e) => setLaborCost(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Embalagem fixa (R$)" value={packagingCost} onChange={(e) => setPackagingCost(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Desperdício (%)" value={wastePct} onChange={(e) => setWastePct(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Taxas (%)" value={feesPct} onChange={(e) => setFeesPct(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Margem de lucro (%)" value={profitPct} onChange={(e) => setProfitPct(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <input type="number" step="0.01" placeholder="Imposto (%)" value={taxPct} onChange={(e) => setTaxPct(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+                      <label className="flex items-center gap-2 text-sm text-neutral-400">
+                        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-neutral-700" />
+                        Perfil padrão
+                      </label>
+                      <button type="submit" disabled={isSavingProfile} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
+                        {isSavingProfile ? "Salvando…" : editingProfileId ? "Salvar alterações" : "Salvar perfil"}
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {costProfiles.length === 0 ? (
+                      <p className="text-sm text-neutral-500">Nenhum perfil de custo cadastrado ainda.</p>
+                    ) : (
+                      costProfiles.map((p) => (
+                        <div key={p.id} className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{p.name}</span>
+                            {p.is_default && <span className="rounded bg-blue-950 px-1.5 py-0.5 text-xs text-blue-300">padrão</span>}
+                          </div>
+                          <p className="mt-1 text-neutral-500">
+                            Energia R$ {p.energy_cost_per_kwh}/kWh · Margem {p.profit_margin_percentage}% · Desperdício {p.waste_percentage}%
+                          </p>
+                          <div className="mt-2 flex gap-3 border-t border-neutral-800 pt-2">
+                            <button onClick={() => startEditProfile(p)} className="text-xs text-blue-400 hover:underline">
+                              Editar
+                            </button>
+                            <button onClick={() => handleDeleteProfile(p)} className="text-xs text-red-400 hover:underline">
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               {activeTab === "peca" && (
                 <div className="space-y-4">
                   {!defaultCostProfile && (
                     <p className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-4 py-3 text-sm text-yellow-300">
-                      Cadastre um perfil de custo na aba Calculadora primeiro (energia, taxas de
-                      marketplace, etc.) — sem ele não dá pra calcular o preço aqui.
+                      Cadastre um{" "}
+                      <button type="button" onClick={() => setActiveTab("perfil")} className="underline">
+                        perfil de custo
+                      </button>{" "}
+                      primeiro (energia, taxas de marketplace, etc.) — sem ele não dá pra calcular
+                      o preço aqui.
                     </p>
                   )}
 
