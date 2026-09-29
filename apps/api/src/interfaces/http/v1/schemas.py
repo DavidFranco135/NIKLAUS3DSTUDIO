@@ -263,6 +263,14 @@ class CreateQuoteRequest(BaseModel):
         return self
 
 
+class UpdateQuoteRequest(BaseModel):
+    piece_name: str | None = Field(default=None, max_length=200)
+    printer_name: str | None = Field(default=None, max_length=200)
+    weight_g: float | None = Field(default=None, ge=0)
+    quantity: int | None = Field(default=None, ge=1)
+    final_price: float | None = Field(default=None, ge=0)
+
+
 class QuoteResponse(BaseModel):
     id: UUID
     cost_profile_id: UUID

@@ -15,6 +15,7 @@ from src.interfaces.http.v1.schemas import (
     CreateQuoteRequest,
     QuoteResponse,
     UpdateCostProfileRequest,
+    UpdateQuoteRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}", tags=["calculator"])
@@ -119,6 +120,33 @@ def delete_cost_profile(
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc
+
+
+@router.patch(
+    "/quotes/{quote_id}",
+    response_model=QuoteResponse,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def update_quote(
+    organization_id: UUID,
+    quote_id: UUID,
+    payload: UpdateQuoteRequest,
+    db: Session = Depends(get_db),
+) -> QuoteResponse:
+    try:
+        quote = calculator_use_cases.update_quote(
+            db,
+            organization_id=organization_id,
+            quote_id=quote_id,
+            piece_name=payload.piece_name,
+            printer_name=payload.printer_name,
+            weight_g=payload.weight_g,
+            quantity=payload.quantity,
+            final_price=payload.final_price,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return QuoteResponse.model_validate(quote)
 
 
 @router.delete(

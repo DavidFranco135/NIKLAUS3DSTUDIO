@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -86,6 +86,13 @@ export default function PrecificacaoPage() {
   const [extraItems, setExtraItems] = useState<{ name: string; cost: string }[]>([]);
 
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [editPieceName, setEditPieceName] = useState("");
+  const [editPrinterName, setEditPrinterName] = useState("");
+  const [editWeightG, setEditWeightG] = useState("");
+  const [editQuantity, setEditQuantity] = useState("1");
+  const [editFinalPrice, setEditFinalPrice] = useState("");
+  const [isSavingPieceEdit, setIsSavingPieceEdit] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken || !currentOrganizationId) return;
@@ -272,6 +279,44 @@ export default function PrecificacaoPage() {
 
   function toggleQuoteSelection(id: string) {
     setSelectedQuoteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function startEditPiece(q: Quote) {
+    setEditingQuoteId(q.id);
+    setEditPieceName(q.piece_name ?? "");
+    setEditPrinterName(q.printer_name ?? "");
+    setEditWeightG(q.weight_g != null ? String(q.weight_g) : "");
+    setEditQuantity(String(q.quantity));
+    setEditFinalPrice(q.final_price != null ? String(q.final_price) : "");
+  }
+
+  function cancelEditPiece() {
+    setEditingQuoteId(null);
+  }
+
+  async function handleSavePieceEdit(q: Quote) {
+    if (!accessToken) return;
+    setIsSavingPieceEdit(true);
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/quotes/${q.id}`, {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify({
+          piece_name: editPieceName,
+          printer_name: editPrinterName || null,
+          weight_g: editWeightG ? Number(editWeightG) : null,
+          quantity: Number(editQuantity || 1),
+          final_price: editFinalPrice ? Number(editFinalPrice) : null,
+        }),
+      });
+      setEditingQuoteId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar peça.");
+    } finally {
+      setIsSavingPieceEdit(false);
+    }
   }
 
   async function handleDeletePiece(q: Quote) {
@@ -611,28 +656,60 @@ export default function PrecificacaoPage() {
                           </tr>
                         ) : (
                           quotes.map((q) => (
-                            <tr key={q.id} className="hover:bg-neutral-900/50">
-                              <td className="px-3 py-3">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedQuoteIds.includes(q.id)}
-                                  onChange={() => toggleQuoteSelection(q.id)}
-                                  className="rounded border-neutral-700"
-                                />
-                              </td>
-                              <td className="px-3 py-3">{q.piece_name}</td>
-                              <td className="px-3 py-3">{q.printer_name ?? "—"}</td>
-                              <td className="px-3 py-3">{q.weight_g != null ? `${q.weight_g}g` : "—"}</td>
-                              <td className="px-3 py-3">{q.quantity}</td>
-                              <td className="px-3 py-3">{formatCurrency(q.production_cost)}</td>
-                              <td className="px-3 py-3 font-medium text-green-400">{formatCurrency(q.suggested_price)}</td>
-                              <td className="px-3 py-3 text-neutral-500">{formatDateTime(q.created_at)}</td>
-                              <td className="px-3 py-3 text-right">
-                                <button onClick={() => handleDeletePiece(q)} className="text-sm text-red-400 hover:underline">
-                                  Excluir
-                                </button>
-                              </td>
-                            </tr>
+                            <Fragment key={q.id}>
+                              <tr className="hover:bg-neutral-900/50">
+                                <td className="px-3 py-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedQuoteIds.includes(q.id)}
+                                    onChange={() => toggleQuoteSelection(q.id)}
+                                    className="rounded border-neutral-700"
+                                  />
+                                </td>
+                                <td className="px-3 py-3">{q.piece_name}</td>
+                                <td className="px-3 py-3">{q.printer_name ?? "—"}</td>
+                                <td className="px-3 py-3">{q.weight_g != null ? `${q.weight_g}g` : "—"}</td>
+                                <td className="px-3 py-3">{q.quantity}</td>
+                                <td className="px-3 py-3">{formatCurrency(q.production_cost)}</td>
+                                <td className="px-3 py-3 font-medium text-green-400">
+                                  {formatCurrency(q.final_price ?? q.suggested_price)}
+                                  {q.final_price != null && (
+                                    <span className="ml-1 text-xs font-normal text-neutral-500">(ajustado)</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3 text-neutral-500">{formatDateTime(q.created_at)}</td>
+                                <td className="px-3 py-3 text-right space-x-3">
+                                  <button onClick={() => startEditPiece(q)} className="text-sm text-blue-400 hover:underline">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => handleDeletePiece(q)} className="text-sm text-red-400 hover:underline">
+                                    Excluir
+                                  </button>
+                                </td>
+                              </tr>
+                              {editingQuoteId === q.id && (
+                                <tr>
+                                  <td colSpan={9} className="bg-neutral-950/80 px-4 py-4">
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <input placeholder="Nome da peça" value={editPieceName} onChange={(e) => setEditPieceName(e.target.value)} className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                      <input placeholder="Impressora" value={editPrinterName} onChange={(e) => setEditPrinterName(e.target.value)} className="w-40 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                      <input type="number" step="0.1" placeholder="Peso (g)" value={editWeightG} onChange={(e) => setEditWeightG(e.target.value)} className="w-24 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                      <input type="number" min={1} placeholder="Qtd." value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="w-20 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                      <input type="number" step="0.01" placeholder="Preço final (R$)" value={editFinalPrice} onChange={(e) => setEditFinalPrice(e.target.value)} className="w-32 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                      <button onClick={() => handleSavePieceEdit(q)} disabled={isSavingPieceEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                                        {isSavingPieceEdit ? "Salvando…" : "Salvar"}
+                                      </button>
+                                      <button onClick={cancelEditPiece} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                    <p className="mt-2 text-xs text-neutral-500">
+                                      &quot;Preço final&quot; sobrescreve o preço sugerido calculado (ex: pra fechar um desconto combinado). Deixe em branco pra manter o preço calculado.
+                                    </p>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           ))
                         )}
                       </tbody>
@@ -668,9 +745,9 @@ export default function PrecificacaoPage() {
                 <td className="py-2 text-right">{q.weight_g != null ? `${q.weight_g}g` : "—"}</td>
                 <td className="py-2 text-right">{q.quantity}</td>
                 <td className="py-2 text-right">{formatCurrency(q.production_cost)}</td>
-                <td className="py-2 text-right">{formatCurrency(q.suggested_price)}</td>
+                <td className="py-2 text-right">{formatCurrency(q.final_price ?? q.suggested_price)}</td>
                 <td className="py-2 text-right font-medium">
-                  {formatCurrency(q.suggested_price * q.quantity)}
+                  {formatCurrency((q.final_price ?? q.suggested_price) * q.quantity)}
                 </td>
               </tr>
             ))}

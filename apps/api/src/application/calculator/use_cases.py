@@ -209,6 +209,38 @@ def get_quote(db: Session, *, organization_id: UUID, quote_id: UUID) -> Quote:
     return quote
 
 
+def update_quote(
+    db: Session,
+    *,
+    organization_id: UUID,
+    quote_id: UUID,
+    piece_name: str | None,
+    printer_name: str | None,
+    weight_g: float | None,
+    quantity: int | None,
+    final_price: float | None,
+) -> Quote:
+    """Edits the piece's own record fields (name, printer, weight, quantity,
+
+    an optional manual final price) — it does not re-run the pricing engine.
+    To change material/time/margin inputs, generate a new piece instead;
+    cost_breakdown_snapshot stays the original calculation for that reason.
+    """
+    quote = get_quote(db, organization_id=organization_id, quote_id=quote_id)
+    if piece_name is not None:
+        quote.piece_name = piece_name
+    if printer_name is not None:
+        quote.printer_name = printer_name
+    if weight_g is not None:
+        quote.weight_g = weight_g
+    if quantity is not None:
+        quote.quantity = quantity
+    if final_price is not None:
+        quote.final_price = final_price
+    db.commit()
+    return quote
+
+
 def delete_quote(db: Session, *, organization_id: UUID, quote_id: UUID) -> None:
     quote = get_quote(db, organization_id=organization_id, quote_id=quote_id)
     QuoteRepository(db).soft_delete(quote)
