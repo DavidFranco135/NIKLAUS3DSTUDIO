@@ -66,6 +66,57 @@ def get_cost_profile(db: Session, *, organization_id: UUID, cost_profile_id: UUI
     return profile
 
 
+def update_cost_profile(
+    db: Session,
+    *,
+    organization_id: UUID,
+    cost_profile_id: UUID,
+    name: str | None,
+    energy_cost_per_kwh: float | None,
+    labor_cost_per_hour: float | None,
+    packaging_cost_flat: float | None,
+    waste_percentage: float | None,
+    fees_percentage: float | None,
+    profit_margin_percentage: float | None,
+    tax_percentage: float | None,
+    is_default: bool | None,
+) -> CostProfile:
+    profile = get_cost_profile(
+        db, organization_id=organization_id, cost_profile_id=cost_profile_id
+    )
+    repo = CostProfileRepository(db)
+    if is_default is True:
+        repo.clear_default(organization_id)
+    if name is not None:
+        profile.name = name
+    if energy_cost_per_kwh is not None:
+        profile.energy_cost_per_kwh = energy_cost_per_kwh
+    if labor_cost_per_hour is not None:
+        profile.labor_cost_per_hour = labor_cost_per_hour
+    if packaging_cost_flat is not None:
+        profile.packaging_cost_flat = packaging_cost_flat
+    if waste_percentage is not None:
+        profile.waste_percentage = waste_percentage
+    if fees_percentage is not None:
+        profile.fees_percentage = fees_percentage
+    if profit_margin_percentage is not None:
+        profile.profit_margin_percentage = profit_margin_percentage
+    if tax_percentage is not None:
+        profile.tax_percentage = tax_percentage
+    if is_default is not None:
+        profile.is_default = is_default
+    db.commit()
+    return profile
+
+
+def delete_cost_profile(db: Session, *, organization_id: UUID, cost_profile_id: UUID) -> None:
+    profile = get_cost_profile(
+        db, organization_id=organization_id, cost_profile_id=cost_profile_id
+    )
+    CostProfileRepository(db).soft_delete(profile)
+    db.commit()
+
+
 def create_quote(
     db: Session,
     *,
@@ -156,3 +207,9 @@ def get_quote(db: Session, *, organization_id: UUID, quote_id: UUID) -> Quote:
     if quote is None:
         raise QuoteNotFoundError(str(quote_id))
     return quote
+
+
+def delete_quote(db: Session, *, organization_id: UUID, quote_id: UUID) -> None:
+    quote = get_quote(db, organization_id=organization_id, quote_id=quote_id)
+    QuoteRepository(db).soft_delete(quote)
+    db.commit()

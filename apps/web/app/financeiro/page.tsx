@@ -30,6 +30,7 @@ export default function FinanceiroPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("");
 
   const [type, setType] = useState("receita");
@@ -68,34 +69,72 @@ export default function FinanceiroPage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, load]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function resetForm() {
+    setType("receita");
+    setCategory("");
+    setAmount("");
+    setDueDate("");
+    setMarkPaid(false);
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(t: FinancialTransaction) {
+    setEditingId(t.id);
+    setType(t.type);
+    setCategory(t.category);
+    setAmount(String(t.amount));
+    setDueDate(t.due_date ?? "");
+    setShowForm(true);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
     setIsSaving(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/finance/transactions`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          type,
-          category,
-          amount: Number(amount),
-          due_date: dueDate || null,
-          mark_as_paid: markPaid,
-        }),
-      });
-      setType("receita");
-      setCategory("");
-      setAmount("");
-      setDueDate("");
-      setMarkPaid(false);
-      setShowForm(false);
+      if (editingId) {
+        await apiFetch(`${orgPath}/finance/transactions/${editingId}`, {
+          method: "PATCH",
+          accessToken,
+          body: JSON.stringify({
+            category,
+            amount: Number(amount),
+            due_date: dueDate || null,
+          }),
+        });
+      } else {
+        await apiFetch(`${orgPath}/finance/transactions`, {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({
+            type,
+            category,
+            amount: Number(amount),
+            due_date: dueDate || null,
+            mark_as_paid: markPaid,
+          }),
+        });
+      }
+      resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar lançamento.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar lançamento.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(t: FinancialTransaction) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o lançamento "${t.category}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/finance/transactions/${t.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir lançamento.");
     }
   }
 
@@ -152,7 +191,7 @@ export default function FinanceiroPage() {
             ))}
           </select>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
             className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
           >
             {showForm ? "Cancelar" : "+ Novo lançamento"}
@@ -161,10 +200,10 @@ export default function FinanceiroPage() {
 
         {showForm && (
           <form
-            onSubmit={handleCreate}
+            onSubmit={handleSubmit}
             className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
-            <select value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
+            <select value={type} onChange={(e) => setType(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50">
               {FINANCE_TRANSACTION_TYPES.map((t) => (
                 <option key={t} value={t}>{TYPE_LABELS[t]}</option>
               ))}
@@ -172,12 +211,14 @@ export default function FinanceiroPage() {
             <input required placeholder="Categoria" value={category} onChange={(e) => setCategory(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input required type="number" step="0.01" placeholder="Valor (R$)" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input type="date" placeholder="Vencimento" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <label className="flex items-center gap-2 text-sm text-neutral-400 sm:col-span-2">
-              <input type="checkbox" checked={markPaid} onChange={(e) => setMarkPaid(e.target.checked)} className="rounded border-neutral-700" />
-              Já foi pago
-            </label>
+            {!editingId && (
+              <label className="flex items-center gap-2 text-sm text-neutral-400 sm:col-span-2">
+                <input type="checkbox" checked={markPaid} onChange={(e) => setMarkPaid(e.target.checked)} className="rounded border-neutral-700" />
+                Já foi pago
+              </label>
+            )}
             <button type="submit" disabled={isSaving} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
-              {isSaving ? "Salvando…" : "Salvar lançamento"}
+              {isSaving ? "Salvando…" : editingId ? "Salvar alterações" : "Salvar lançamento"}
             </button>
           </form>
         )}
@@ -217,12 +258,18 @@ export default function FinanceiroPage() {
                         <span className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">Pendente</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right space-x-3">
                       {!t.paid_at && (
                         <button onClick={() => handleMarkPaid(t.id)} className="text-sm text-blue-400 hover:underline">
                           Marcar como pago
                         </button>
                       )}
+                      <button onClick={() => startEdit(t)} className="text-sm text-blue-400 hover:underline">
+                        Editar
+                      </button>
+                      <button onClick={() => handleDelete(t)} className="text-sm text-red-400 hover:underline">
+                        Excluir
+                      </button>
                     </td>
                   </tr>
                 ))

@@ -61,6 +61,7 @@ def update_machine(
     brand: str | None,
     model: str | None,
     cost_per_hour: float | None,
+    power_watts: float | None,
     status: str | None,
 ) -> Machine:
     machine = get_machine(db, organization_id=organization_id, machine_id=machine_id)
@@ -72,7 +73,15 @@ def update_machine(
         machine.model = model
     if cost_per_hour is not None:
         machine.cost_per_hour = cost_per_hour
+    if power_watts is not None:
+        machine.power_watts = power_watts
     if status is not None:
         machine.status = status
     db.commit()
     return machine
+
+
+def delete_machine(db: Session, *, organization_id: UUID, machine_id: UUID) -> None:
+    machine = get_machine(db, organization_id=organization_id, machine_id=machine_id)
+    MachineRepository(db).soft_delete(machine)
+    db.commit()

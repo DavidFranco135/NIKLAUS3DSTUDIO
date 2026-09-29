@@ -20,6 +20,7 @@ export default function CalculadoraPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [showProfileForm, setShowProfileForm] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
   const [profileName, setProfileName] = useState("");
   const [energyCost, setEnergyCost] = useState("0.9");
@@ -74,34 +75,90 @@ export default function CalculadoraPage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, load]);
 
-  async function handleCreateProfile(event: React.FormEvent) {
+  function resetProfileForm() {
+    setProfileName("");
+    setEnergyCost("0.9");
+    setLaborCost("20");
+    setPackagingCost("2");
+    setWastePct("5");
+    setFeesPct("0");
+    setProfitPct("40");
+    setTaxPct("0");
+    setIsDefault(false);
+    setEditingProfileId(null);
+    setShowProfileForm(false);
+  }
+
+  function startEditProfile(p: CostProfile) {
+    setEditingProfileId(p.id);
+    setProfileName(p.name);
+    setEnergyCost(String(p.energy_cost_per_kwh));
+    setLaborCost(String(p.labor_cost_per_hour));
+    setPackagingCost(String(p.packaging_cost_flat));
+    setWastePct(String(p.waste_percentage));
+    setFeesPct(String(p.fees_percentage));
+    setProfitPct(String(p.profit_margin_percentage));
+    setTaxPct(p.tax_percentage != null ? String(p.tax_percentage) : "0");
+    setIsDefault(p.is_default);
+    setShowProfileForm(true);
+  }
+
+  async function handleSubmitProfile(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
     setIsSavingProfile(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/cost-profiles`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          name: profileName,
-          energy_cost_per_kwh: Number(energyCost),
-          labor_cost_per_hour: Number(laborCost),
-          packaging_cost_flat: Number(packagingCost),
-          waste_percentage: Number(wastePct),
-          fees_percentage: Number(feesPct),
-          profit_margin_percentage: Number(profitPct),
-          tax_percentage: taxPct ? Number(taxPct) : null,
-          is_default: isDefault,
-        }),
+      const body = JSON.stringify({
+        name: profileName,
+        energy_cost_per_kwh: Number(energyCost),
+        labor_cost_per_hour: Number(laborCost),
+        packaging_cost_flat: Number(packagingCost),
+        waste_percentage: Number(wastePct),
+        fees_percentage: Number(feesPct),
+        profit_margin_percentage: Number(profitPct),
+        tax_percentage: taxPct ? Number(taxPct) : null,
+        is_default: isDefault,
       });
-      setProfileName("");
-      setShowProfileForm(false);
+      if (editingProfileId) {
+        await apiFetch(`${orgPath}/cost-profiles/${editingProfileId}`, {
+          method: "PATCH",
+          accessToken,
+          body,
+        });
+      } else {
+        await apiFetch(`${orgPath}/cost-profiles`, { method: "POST", accessToken, body });
+      }
+      resetProfileForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar perfil de custo.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar perfil de custo.");
     } finally {
       setIsSavingProfile(false);
+    }
+  }
+
+  async function handleDeleteProfile(p: CostProfile) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o perfil de custo "${p.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/cost-profiles/${p.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir perfil de custo.");
+    }
+  }
+
+  async function handleDeleteQuote(q: Quote) {
+    if (!accessToken) return;
+    if (!window.confirm("Excluir este orçamento?")) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/quotes/${q.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir orçamento.");
     }
   }
 
@@ -159,7 +216,7 @@ export default function CalculadoraPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-neutral-300">Perfis de custo</h2>
             <button
-              onClick={() => setShowProfileForm((v) => !v)}
+              onClick={() => (showProfileForm ? resetProfileForm() : setShowProfileForm(true))}
               className="rounded-lg bg-neutral-800 px-3 py-1.5 text-xs font-medium hover:bg-neutral-700"
             >
               {showProfileForm ? "Cancelar" : "+ Novo perfil"}
@@ -168,7 +225,7 @@ export default function CalculadoraPage() {
 
           {showProfileForm && (
             <form
-              onSubmit={handleCreateProfile}
+              onSubmit={handleSubmitProfile}
               className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-3"
             >
               <input required placeholder="Nome do perfil" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-3" />
@@ -184,7 +241,7 @@ export default function CalculadoraPage() {
                 Perfil padrão
               </label>
               <button type="submit" disabled={isSavingProfile} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-3">
-                {isSavingProfile ? "Salvando…" : "Salvar perfil"}
+                {isSavingProfile ? "Salvando…" : editingProfileId ? "Salvar alterações" : "Salvar perfil"}
               </button>
             </form>
           )}
@@ -201,7 +258,17 @@ export default function CalculadoraPage() {
                     <span className="font-medium">{p.name}</span>
                     {p.is_default && <span className="rounded bg-blue-950 px-1.5 py-0.5 text-xs text-blue-300">padrão</span>}
                   </div>
-                  <p className="mt-1 text-neutral-500">Margem {p.profit_margin_percentage}% · Desperdício {p.waste_percentage}%</p>
+                  <p className="mt-1 text-neutral-500">
+                    Energia R$ {p.energy_cost_per_kwh}/kWh · Margem {p.profit_margin_percentage}% · Desperdício {p.waste_percentage}%
+                  </p>
+                  <div className="mt-2 flex gap-3 border-t border-neutral-800 pt-2">
+                    <button onClick={() => startEditProfile(p)} className="text-xs text-blue-400 hover:underline">
+                      Editar
+                    </button>
+                    <button onClick={() => handleDeleteProfile(p)} className="text-xs text-red-400 hover:underline">
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -265,12 +332,13 @@ export default function CalculadoraPage() {
                   <th className="px-4 py-3 font-medium">Preço sugerido</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Criado em</th>
+                  <th className="px-4 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800">
                 {quotes.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum orçamento ainda.</td>
+                    <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Nenhum orçamento ainda.</td>
                   </tr>
                 ) : (
                   quotes.map((q) => (
@@ -280,6 +348,11 @@ export default function CalculadoraPage() {
                       <td className="px-4 py-3 font-medium text-green-400">{formatCurrency(q.final_price ?? q.suggested_price)}</td>
                       <td className="px-4 py-3">{q.status}</td>
                       <td className="px-4 py-3">{formatDateTime(q.created_at)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => handleDeleteQuote(q)} className="text-sm text-red-400 hover:underline">
+                          Excluir
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}

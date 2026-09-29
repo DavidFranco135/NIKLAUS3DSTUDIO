@@ -274,6 +274,19 @@ export default function PrecificacaoPage() {
     setSelectedQuoteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  async function handleDeletePiece(q: Quote) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir a peça salva "${q.piece_name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/quotes/${q.id}`, { method: "DELETE", accessToken });
+      setSelectedQuoteIds((prev) => prev.filter((id) => id !== q.id));
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir peça.");
+    }
+  }
+
   const selectedQuotes = quotes.filter((q) => selectedQuoteIds.includes(q.id));
 
   if (status !== "authenticated") {
@@ -586,12 +599,13 @@ export default function PrecificacaoPage() {
                           <th className="px-3 py-3 font-medium">Custo</th>
                           <th className="px-3 py-3 font-medium">Preço</th>
                           <th className="px-3 py-3 font-medium">Salva em</th>
+                          <th className="px-3 py-3 font-medium"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-800">
                         {quotes.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="px-3 py-6 text-center text-neutral-500">
+                            <td colSpan={9} className="px-3 py-6 text-center text-neutral-500">
                               Nenhuma peça salva ainda — calcule uma na aba Peça.
                             </td>
                           </tr>
@@ -613,6 +627,11 @@ export default function PrecificacaoPage() {
                               <td className="px-3 py-3">{formatCurrency(q.production_cost)}</td>
                               <td className="px-3 py-3 font-medium text-green-400">{formatCurrency(q.suggested_price)}</td>
                               <td className="px-3 py-3 text-neutral-500">{formatDateTime(q.created_at)}</td>
+                              <td className="px-3 py-3 text-right">
+                                <button onClick={() => handleDeletePiece(q)} className="text-sm text-red-400 hover:underline">
+                                  Excluir
+                                </button>
+                              </td>
                             </tr>
                           ))
                         )}

@@ -527,6 +527,7 @@ class CostProfileRepository:
             select(CostProfile).where(
                 CostProfile.id == cost_profile_id,
                 CostProfile.organization_id == organization_id,
+                CostProfile.deleted_at.is_(None),
             )
         )
 
@@ -534,16 +535,24 @@ class CostProfileRepository:
         return list(
             self.session.scalars(
                 select(CostProfile)
-                .where(CostProfile.organization_id == organization_id)
+                .where(
+                    CostProfile.organization_id == organization_id,
+                    CostProfile.deleted_at.is_(None),
+                )
                 .order_by(CostProfile.created_at)
             )
         )
+
+    def soft_delete(self, profile: CostProfile) -> None:
+        profile.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def get_default(self, organization_id: UUID) -> CostProfile | None:
         return self.session.scalar(
             select(CostProfile).where(
                 CostProfile.organization_id == organization_id,
                 CostProfile.is_default.is_(True),
+                CostProfile.deleted_at.is_(None),
             )
         )
 
@@ -590,14 +599,18 @@ class QuoteRepository:
 
     def get(self, organization_id: UUID, quote_id: UUID) -> Quote | None:
         return self.session.scalar(
-            select(Quote).where(Quote.id == quote_id, Quote.organization_id == organization_id)
+            select(Quote).where(
+                Quote.id == quote_id,
+                Quote.organization_id == organization_id,
+                Quote.deleted_at.is_(None),
+            )
         )
 
     def list_for_org(self, organization_id: UUID) -> list[Quote]:
         return list(
             self.session.scalars(
                 select(Quote)
-                .where(Quote.organization_id == organization_id)
+                .where(Quote.organization_id == organization_id, Quote.deleted_at.is_(None))
                 .order_by(Quote.created_at.desc())
             )
         )
@@ -607,11 +620,17 @@ class QuoteRepository:
             self.session.scalars(
                 select(Quote)
                 .where(
-                    Quote.organization_id == organization_id, Quote.customer_id == customer_id
+                    Quote.organization_id == organization_id,
+                    Quote.customer_id == customer_id,
+                    Quote.deleted_at.is_(None),
                 )
                 .order_by(Quote.created_at.desc())
             )
         )
+
+    def soft_delete(self, quote: Quote) -> None:
+        quote.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def create(
         self,
@@ -655,7 +674,9 @@ class MaterialRepository:
     def get(self, organization_id: UUID, material_id: UUID) -> Material | None:
         return self.session.scalar(
             select(Material).where(
-                Material.id == material_id, Material.organization_id == organization_id
+                Material.id == material_id,
+                Material.organization_id == organization_id,
+                Material.deleted_at.is_(None),
             )
         )
 
@@ -663,10 +684,14 @@ class MaterialRepository:
         return list(
             self.session.scalars(
                 select(Material)
-                .where(Material.organization_id == organization_id)
+                .where(Material.organization_id == organization_id, Material.deleted_at.is_(None))
                 .order_by(Material.created_at)
             )
         )
+
+    def soft_delete(self, material: Material) -> None:
+        material.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def create(
         self,
@@ -700,7 +725,9 @@ class ProductRepository:
     def get(self, organization_id: UUID, product_id: UUID) -> Product | None:
         return self.session.scalar(
             select(Product).where(
-                Product.id == product_id, Product.organization_id == organization_id
+                Product.id == product_id,
+                Product.organization_id == organization_id,
+                Product.deleted_at.is_(None),
             )
         )
 
@@ -708,10 +735,14 @@ class ProductRepository:
         return list(
             self.session.scalars(
                 select(Product)
-                .where(Product.organization_id == organization_id)
+                .where(Product.organization_id == organization_id, Product.deleted_at.is_(None))
                 .order_by(Product.created_at)
             )
         )
+
+    def soft_delete(self, product: Product) -> None:
+        product.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def create(
         self,
@@ -755,6 +786,11 @@ class ProductMaterialRepository:
         self.session.flush()
         return line
 
+    def delete_for_product(self, product_id: UUID) -> None:
+        for line in self.list_for_product(product_id):
+            self.session.delete(line)
+        self.session.flush()
+
 
 class InventoryItemRepository:
     def __init__(self, session: Session) -> None:
@@ -763,7 +799,9 @@ class InventoryItemRepository:
     def get(self, organization_id: UUID, item_id: UUID) -> InventoryItem | None:
         return self.session.scalar(
             select(InventoryItem).where(
-                InventoryItem.id == item_id, InventoryItem.organization_id == organization_id
+                InventoryItem.id == item_id,
+                InventoryItem.organization_id == organization_id,
+                InventoryItem.deleted_at.is_(None),
             )
         )
 
@@ -771,10 +809,17 @@ class InventoryItemRepository:
         return list(
             self.session.scalars(
                 select(InventoryItem)
-                .where(InventoryItem.organization_id == organization_id)
+                .where(
+                    InventoryItem.organization_id == organization_id,
+                    InventoryItem.deleted_at.is_(None),
+                )
                 .order_by(InventoryItem.created_at)
             )
         )
+
+    def soft_delete(self, item: InventoryItem) -> None:
+        item.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def create(
         self,
@@ -1016,8 +1061,13 @@ class FinancialTransactionRepository:
             select(FinancialTransaction).where(
                 FinancialTransaction.id == transaction_id,
                 FinancialTransaction.organization_id == organization_id,
+                FinancialTransaction.deleted_at.is_(None),
             )
         )
+
+    def soft_delete(self, transaction: FinancialTransaction) -> None:
+        transaction.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def list_for_org(
         self,
@@ -1028,7 +1078,8 @@ class FinancialTransactionRepository:
         end_date: date | None = None,
     ) -> list[FinancialTransaction]:
         stmt = select(FinancialTransaction).where(
-            FinancialTransaction.organization_id == organization_id
+            FinancialTransaction.organization_id == organization_id,
+            FinancialTransaction.deleted_at.is_(None),
         )
         if type is not None:
             stmt = stmt.where(FinancialTransaction.type == type)
@@ -1078,7 +1129,9 @@ class MachineRepository:
     def get(self, organization_id: UUID, machine_id: UUID) -> Machine | None:
         return self.session.scalar(
             select(Machine).where(
-                Machine.id == machine_id, Machine.organization_id == organization_id
+                Machine.id == machine_id,
+                Machine.organization_id == organization_id,
+                Machine.deleted_at.is_(None),
             )
         )
 
@@ -1086,10 +1139,14 @@ class MachineRepository:
         return list(
             self.session.scalars(
                 select(Machine)
-                .where(Machine.organization_id == organization_id)
+                .where(Machine.organization_id == organization_id, Machine.deleted_at.is_(None))
                 .order_by(Machine.created_at)
             )
         )
+
+    def soft_delete(self, machine: Machine) -> None:
+        machine.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
     def create(
         self,

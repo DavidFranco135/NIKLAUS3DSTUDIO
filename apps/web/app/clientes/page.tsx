@@ -14,8 +14,9 @@ export default function ClientesPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
@@ -48,32 +49,59 @@ export default function ClientesPage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, load]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function resetForm() {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setDocument("");
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(c: Customer) {
+    setEditingId(c.id);
+    setName(c.name);
+    setEmail(c.email ?? "");
+    setPhone(c.phone ?? "");
+    setDocument(c.document ?? "");
+    setShowForm(true);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
-    setIsCreating(true);
+    setIsSaving(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/customers`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          name,
-          email: email || null,
-          phone: phone || null,
-          document: document || null,
-        }),
+      const body = JSON.stringify({
+        name,
+        email: email || null,
+        phone: phone || null,
+        document: document || null,
       });
-      setName("");
-      setEmail("");
-      setPhone("");
-      setDocument("");
-      setShowForm(false);
+      if (editingId) {
+        await apiFetch(`${orgPath}/customers/${editingId}`, { method: "PATCH", accessToken, body });
+      } else {
+        await apiFetch(`${orgPath}/customers`, { method: "POST", accessToken, body });
+      }
+      resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar cliente.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar cliente.");
     } finally {
-      setIsCreating(false);
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(c: Customer) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o cliente "${c.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/customers/${c.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir cliente.");
     }
   }
 
@@ -104,7 +132,7 @@ export default function ClientesPage() {
             className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:max-w-xs"
           />
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
             className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
           >
             {showForm ? "Cancelar" : "+ Novo cliente"}
@@ -113,37 +141,38 @@ export default function ClientesPage() {
 
         {showForm && (
           <form
-            onSubmit={handleCreate}
+            onSubmit={handleSubmit}
             className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <input required placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input placeholder="CPF/CNPJ" value={document} onChange={(e) => setDocument(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <button type="submit" disabled={isCreating} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
-              {isCreating ? "Salvando…" : "Salvar cliente"}
+            <button type="submit" disabled={isSaving} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
+              {isSaving ? "Salvando…" : editingId ? "Salvar alterações" : "Salvar cliente"}
             </button>
           </form>
         )}
 
         <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[600px] text-left text-sm">
+          <table className="w-full min-w-[700px] text-left text-sm">
             <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Nome</th>
                 <th className="px-4 py-3 font-medium">E-mail</th>
                 <th className="px-4 py-3 font-medium">Telefone</th>
                 <th className="px-4 py-3 font-medium">Cadastrado em</th>
+                <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">Nenhum cliente encontrado.</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum cliente encontrado.</td>
                 </tr>
               ) : (
                 filtered.map((c) => (
@@ -152,6 +181,14 @@ export default function ClientesPage() {
                     <td className="px-4 py-3">{c.email ?? "—"}</td>
                     <td className="px-4 py-3">{c.phone ?? "—"}</td>
                     <td className="px-4 py-3">{formatDate(c.created_at)}</td>
+                    <td className="px-4 py-3 text-right space-x-3">
+                      <button onClick={() => startEdit(c)} className="text-sm text-blue-400 hover:underline">
+                        Editar
+                      </button>
+                      <button onClick={() => handleDelete(c)} className="text-sm text-red-400 hover:underline">
+                        Excluir
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

@@ -32,6 +32,7 @@ export default function EstoquePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [movementItemId, setMovementItemId] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ export default function EstoquePage() {
   const [unit, setUnit] = useState("g");
   const [minimumStock, setMinimumStock] = useState("0");
   const [unitCost, setUnitCost] = useState("");
+  const [supplier, setSupplier] = useState("");
   const [initialQuantity, setInitialQuantity] = useState("0");
 
   const [movementType, setMovementType] = useState("entrada");
@@ -74,36 +76,80 @@ export default function EstoquePage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, load]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function resetForm() {
+    setName("");
+    setCategory("filament");
+    setUnit("g");
+    setMinimumStock("0");
+    setUnitCost("");
+    setSupplier("");
+    setInitialQuantity("0");
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(item: InventoryItem) {
+    setEditingId(item.id);
+    setName(item.name);
+    setCategory(item.category);
+    setUnit(item.unit);
+    setMinimumStock(String(item.minimum_stock));
+    setUnitCost(item.unit_cost != null ? String(item.unit_cost) : "");
+    setSupplier(item.supplier ?? "");
+    setShowForm(true);
+    setMovementItemId(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
     setIsSaving(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/inventory-items`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          name,
-          category,
-          unit,
-          minimum_stock: Number(minimumStock || 0),
-          unit_cost: unitCost ? Number(unitCost) : null,
-          initial_quantity: Number(initialQuantity || 0),
-        }),
-      });
-      setName("");
-      setCategory("filament");
-      setUnit("g");
-      setMinimumStock("0");
-      setUnitCost("");
-      setInitialQuantity("0");
-      setShowForm(false);
+      if (editingId) {
+        await apiFetch(`${orgPath}/inventory-items/${editingId}`, {
+          method: "PATCH",
+          accessToken,
+          body: JSON.stringify({
+            name,
+            minimum_stock: Number(minimumStock || 0),
+            unit_cost: unitCost ? Number(unitCost) : null,
+            supplier: supplier || null,
+          }),
+        });
+      } else {
+        await apiFetch(`${orgPath}/inventory-items`, {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({
+            name,
+            category,
+            unit,
+            minimum_stock: Number(minimumStock || 0),
+            unit_cost: unitCost ? Number(unitCost) : null,
+            supplier: supplier || null,
+            initial_quantity: Number(initialQuantity || 0),
+          }),
+        });
+      }
+      resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar item.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar item.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(item: InventoryItem) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o item de estoque "${item.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/inventory-items/${item.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir item.");
     }
   }
 
@@ -157,7 +203,7 @@ export default function EstoquePage() {
             Mostrar só estoque baixo
           </label>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
             className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
           >
             {showForm ? "Cancelar" : "+ Novo item"}
@@ -166,25 +212,28 @@ export default function EstoquePage() {
 
         {showForm && (
           <form
-            onSubmit={handleCreate}
+            onSubmit={handleSubmit}
             className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <input required placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50">
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
+            <select value={unit} onChange={(e) => setUnit(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50">
               <option value="g">g</option>
               <option value="kg">kg</option>
               <option value="un">un</option>
             </select>
             <input type="number" step="0.01" placeholder="Estoque mínimo" value={minimumStock} onChange={(e) => setMinimumStock(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input type="number" step="0.01" placeholder="Custo unitário (R$)" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <input type="number" step="0.01" placeholder="Quantidade inicial" value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+            <input placeholder="Fornecedor" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+            {!editingId && (
+              <input type="number" step="0.01" placeholder="Quantidade inicial" value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+            )}
             <button type="submit" disabled={isSaving} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
-              {isSaving ? "Salvando…" : "Salvar item"}
+              {isSaving ? "Salvando…" : editingId ? "Salvar alterações" : "Salvar item"}
             </button>
           </form>
         )}
@@ -222,12 +271,18 @@ export default function EstoquePage() {
                       <td className="px-4 py-3">{CATEGORY_LABELS[item.category] ?? item.category}</td>
                       <td className="px-4 py-3">{item.quantity_on_hand} {item.unit}</td>
                       <td className="px-4 py-3">{item.minimum_stock} {item.unit}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right space-x-3">
                         <button
                           onClick={() => setMovementItemId(movementItemId === item.id ? null : item.id)}
                           className="text-sm text-blue-400 hover:underline"
                         >
                           Movimentar
+                        </button>
+                        <button onClick={() => startEdit(item)} className="text-sm text-blue-400 hover:underline">
+                          Editar
+                        </button>
+                        <button onClick={() => handleDelete(item)} className="text-sm text-red-400 hover:underline">
+                          Excluir
                         </button>
                       </td>
                     </tr>

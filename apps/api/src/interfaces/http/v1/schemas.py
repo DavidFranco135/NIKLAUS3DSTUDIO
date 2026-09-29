@@ -203,6 +203,18 @@ class CreateCostProfileRequest(BaseModel):
     is_default: bool = False
 
 
+class UpdateCostProfileRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    energy_cost_per_kwh: float | None = Field(default=None, ge=0)
+    labor_cost_per_hour: float | None = Field(default=None, ge=0)
+    packaging_cost_flat: float | None = Field(default=None, ge=0)
+    waste_percentage: float | None = Field(default=None, ge=0)
+    fees_percentage: float | None = Field(default=None, ge=0)
+    profit_margin_percentage: float | None = Field(default=None, ge=0)
+    tax_percentage: float | None = Field(default=None, ge=0)
+    is_default: bool | None = None
+
+
 class CostProfileResponse(BaseModel):
     id: UUID
     name: str
@@ -343,6 +355,15 @@ class CreateMaterialRequest(BaseModel):
     supplier: str | None = Field(default=None, max_length=200)
 
 
+class UpdateMaterialRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    type: str | None = Field(default=None, min_length=2, max_length=30)
+    color: str | None = Field(default=None, max_length=50)
+    density_g_cm3: float | None = Field(default=None, gt=0)
+    cost_per_kg: float | None = Field(default=None, ge=0)
+    supplier: str | None = Field(default=None, max_length=200)
+
+
 class MaterialResponse(BaseModel):
     id: UUID
     name: str
@@ -367,6 +388,14 @@ class CreateProductRequest(BaseModel):
     print_time_hours: float | None = Field(default=None, ge=0)
     machine_id: UUID | None = None
     materials: list[ProductMaterialInput] = Field(default_factory=list)
+
+
+class UpdateProductRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    print_time_hours: float | None = Field(default=None, ge=0)
+    machine_id: UUID | None = None
+    materials: list[ProductMaterialInput] | None = None
 
 
 class ProductMaterialResponse(BaseModel):
@@ -409,6 +438,13 @@ class CreateInventoryItemRequest(BaseModel):
     unit_cost: float | None = Field(default=None, ge=0)
     supplier: str | None = Field(default=None, max_length=200)
     initial_quantity: float = Field(default=0, ge=0)
+
+
+class UpdateInventoryItemRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    minimum_stock: float | None = Field(default=None, ge=0)
+    unit_cost: float | None = Field(default=None, ge=0)
+    supplier: str | None = Field(default=None, max_length=200)
 
 
 class InventoryItemResponse(BaseModel):
@@ -477,6 +513,13 @@ class CreateFinancialTransactionRequest(BaseModel):
     mark_as_paid: bool = False
 
 
+class UpdateFinancialTransactionRequest(BaseModel):
+    category: str | None = Field(default=None, min_length=2, max_length=50)
+    cost_center: str | None = Field(default=None, max_length=100)
+    amount: float | None = Field(default=None, gt=0)
+    due_date: date | None = None
+
+
 class FinancialTransactionResponse(BaseModel):
     id: UUID
     type: str
@@ -527,6 +570,7 @@ class UpdateMachineRequest(BaseModel):
     brand: str | None = Field(default=None, max_length=100)
     model: str | None = Field(default=None, max_length=100)
     cost_per_hour: float | None = Field(default=None, ge=0)
+    power_watts: float | None = Field(default=None, ge=0)
     status: str | None = Field(default=None, pattern="^(active|maintenance|inactive)$")
 
 

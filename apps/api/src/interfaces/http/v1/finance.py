@@ -14,6 +14,7 @@ from src.interfaces.http.v1.schemas import (
     CreateFinancialTransactionRequest,
     FinancialSummaryResponse,
     FinancialTransactionResponse,
+    UpdateFinancialTransactionRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}/finance", tags=["finance"])
@@ -82,6 +83,48 @@ def get_transaction(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return FinancialTransactionResponse.model_validate(transaction)
+
+
+@router.patch(
+    "/transactions/{transaction_id}",
+    response_model=FinancialTransactionResponse,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def update_transaction(
+    organization_id: UUID,
+    transaction_id: UUID,
+    payload: UpdateFinancialTransactionRequest,
+    db: Session = Depends(get_db),
+) -> FinancialTransactionResponse:
+    try:
+        transaction = financial_use_cases.update_transaction(
+            db,
+            organization_id=organization_id,
+            transaction_id=transaction_id,
+            category=payload.category,
+            cost_center=payload.cost_center,
+            amount=payload.amount,
+            due_date=payload.due_date,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return FinancialTransactionResponse.model_validate(transaction)
+
+
+@router.delete(
+    "/transactions/{transaction_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_transaction(
+    organization_id: UUID, transaction_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    try:
+        financial_use_cases.delete_transaction(
+            db, organization_id=organization_id, transaction_id=transaction_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
 
 
 @router.post(

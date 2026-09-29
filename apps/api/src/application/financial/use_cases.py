@@ -81,6 +81,39 @@ def mark_transaction_paid(
     return transaction
 
 
+def update_transaction(
+    db: Session,
+    *,
+    organization_id: UUID,
+    transaction_id: UUID,
+    category: str | None,
+    cost_center: str | None,
+    amount: float | None,
+    due_date: date | None,
+) -> FinancialTransaction:
+    transaction = get_transaction(
+        db, organization_id=organization_id, transaction_id=transaction_id
+    )
+    if category is not None:
+        transaction.category = category
+    if cost_center is not None:
+        transaction.cost_center = cost_center
+    if amount is not None:
+        transaction.amount = amount
+    if due_date is not None:
+        transaction.due_date = due_date
+    db.commit()
+    return transaction
+
+
+def delete_transaction(db: Session, *, organization_id: UUID, transaction_id: UUID) -> None:
+    transaction = get_transaction(
+        db, organization_id=organization_id, transaction_id=transaction_id
+    )
+    FinancialTransactionRepository(db).soft_delete(transaction)
+    db.commit()
+
+
 def get_financial_summary(
     db: Session,
     *,

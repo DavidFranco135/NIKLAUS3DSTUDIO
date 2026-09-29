@@ -15,6 +15,7 @@ from src.interfaces.http.v1.schemas import (
     CreateInventoryMovementRequest,
     InventoryItemResponse,
     InventoryMovementResponse,
+    UpdateInventoryItemRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}/inventory-items", tags=["inventory"])
@@ -84,6 +85,48 @@ def get_inventory_item(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return _to_response(item)
+
+
+@router.patch(
+    "/{item_id}",
+    response_model=InventoryItemResponse,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def update_inventory_item(
+    organization_id: UUID,
+    item_id: UUID,
+    payload: UpdateInventoryItemRequest,
+    db: Session = Depends(get_db),
+) -> InventoryItemResponse:
+    try:
+        item = inventory_use_cases.update_inventory_item(
+            db,
+            organization_id=organization_id,
+            item_id=item_id,
+            name=payload.name,
+            minimum_stock=payload.minimum_stock,
+            unit_cost=payload.unit_cost,
+            supplier=payload.supplier,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return _to_response(item)
+
+
+@router.delete(
+    "/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_inventory_item(
+    organization_id: UUID, item_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    try:
+        inventory_use_cases.delete_inventory_item(
+            db, organization_id=organization_id, item_id=item_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
 
 
 @router.post(

@@ -72,6 +72,53 @@ def list_product_materials(db: Session, *, product_id: UUID) -> list[dict]:
     return [{"material_id": line.material_id, "quantity_g": line.quantity_g} for line in lines]
 
 
+def update_product(
+    db: Session,
+    *,
+    organization_id: UUID,
+    product_id: UUID,
+    name: str | None,
+    description: str | None,
+    print_time_hours: float | None,
+    machine_id: UUID | None,
+    materials: list[dict] | None,
+) -> Product:
+    """`materials`, when provided, fully replaces the product's BOM (the
+
+    frontend always sends the complete, current list of lines — there is no
+    partial line-level update).
+    """
+    product = get_product(db, organization_id=organization_id, product_id=product_id)
+    if name is not None:
+        product.name = name
+    if description is not None:
+        product.description = description
+    if print_time_hours is not None:
+        product.print_time_hours = print_time_hours
+    if machine_id is not None:
+        get_machine(db, organization_id=organization_id, machine_id=machine_id)
+        product.machine_id = machine_id
+    if materials is not None:
+        for line in materials:
+            get_material(db, organization_id=organization_id, material_id=line["material_id"])
+        material_repo = ProductMaterialRepository(db)
+        material_repo.delete_for_product(product.id)
+        for line in materials:
+            material_repo.create(
+                product_id=product.id,
+                material_id=line["material_id"],
+                quantity_g=line["quantity_g"],
+            )
+    db.commit()
+    return product
+
+
+def delete_product(db: Session, *, organization_id: UUID, product_id: UUID) -> None:
+    product = get_product(db, organization_id=organization_id, product_id=product_id)
+    ProductRepository(db).soft_delete(product)
+    db.commit()
+
+
 def compute_product_cost(
     db: Session,
     *,

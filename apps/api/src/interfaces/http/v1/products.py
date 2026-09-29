@@ -12,6 +12,7 @@ from src.interfaces.http.v1.schemas import (
     CreateProductRequest,
     ProductCostResponse,
     ProductResponse,
+    UpdateProductRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}/products", tags=["products"])
@@ -118,3 +119,48 @@ def get_product_cost(
         tax_amount=breakdown.tax_amount,
         suggested_price=breakdown.suggested_price,
     )
+
+
+@router.patch(
+    "/{product_id}",
+    response_model=ProductResponse,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def update_product(
+    organization_id: UUID,
+    product_id: UUID,
+    payload: UpdateProductRequest,
+    db: Session = Depends(get_db),
+) -> ProductResponse:
+    try:
+        product = product_use_cases.update_product(
+            db,
+            organization_id=organization_id,
+            product_id=product_id,
+            name=payload.name,
+            description=payload.description,
+            print_time_hours=payload.print_time_hours,
+            machine_id=payload.machine_id,
+            materials=(
+                [m.model_dump() for m in payload.materials]
+                if payload.materials is not None
+                else None
+            ),
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return _to_response(db, product)
+
+
+@router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_product(organization_id: UUID, product_id: UUID, db: Session = Depends(get_db)) -> None:
+    try:
+        product_use_cases.delete_product(
+            db, organization_id=organization_id, product_id=product_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc

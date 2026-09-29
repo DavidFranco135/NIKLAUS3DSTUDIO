@@ -8,7 +8,11 @@ from src.domain.auth.roles import Role
 from src.domain.shared.exceptions import DomainError
 from src.interfaces.http.dependencies import get_db, require_org_role
 from src.interfaces.http.errors import as_http_exception
-from src.interfaces.http.v1.schemas import CreateMaterialRequest, MaterialResponse
+from src.interfaces.http.v1.schemas import (
+    CreateMaterialRequest,
+    MaterialResponse,
+    UpdateMaterialRequest,
+)
 
 router = APIRouter(prefix="/organizations/{organization_id}/materials", tags=["materials"])
 
@@ -60,3 +64,47 @@ def get_material(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return MaterialResponse.model_validate(material)
+
+
+@router.patch(
+    "/{material_id}",
+    response_model=MaterialResponse,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def update_material(
+    organization_id: UUID,
+    material_id: UUID,
+    payload: UpdateMaterialRequest,
+    db: Session = Depends(get_db),
+) -> MaterialResponse:
+    try:
+        material = inventory_use_cases.update_material(
+            db,
+            organization_id=organization_id,
+            material_id=material_id,
+            name=payload.name,
+            type=payload.type,
+            color=payload.color,
+            density_g_cm3=payload.density_g_cm3,
+            cost_per_kg=payload.cost_per_kg,
+            supplier=payload.supplier,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return MaterialResponse.model_validate(material)
+
+
+@router.delete(
+    "/{material_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_material(
+    organization_id: UUID, material_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    try:
+        inventory_use_cases.delete_material(
+            db, organization_id=organization_id, material_id=material_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc

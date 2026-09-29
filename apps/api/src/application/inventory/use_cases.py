@@ -57,6 +57,41 @@ def get_material(db: Session, *, organization_id: UUID, material_id: UUID) -> Ma
     return material
 
 
+def update_material(
+    db: Session,
+    *,
+    organization_id: UUID,
+    material_id: UUID,
+    name: str | None,
+    type: str | None,
+    color: str | None,
+    density_g_cm3: float | None,
+    cost_per_kg: float | None,
+    supplier: str | None,
+) -> Material:
+    material = get_material(db, organization_id=organization_id, material_id=material_id)
+    if name is not None:
+        material.name = name
+    if type is not None:
+        material.type = type
+    if color is not None:
+        material.color = color
+    if density_g_cm3 is not None:
+        material.density_g_cm3 = density_g_cm3
+    if cost_per_kg is not None:
+        material.cost_per_kg = cost_per_kg
+    if supplier is not None:
+        material.supplier = supplier
+    db.commit()
+    return material
+
+
+def delete_material(db: Session, *, organization_id: UUID, material_id: UUID) -> None:
+    material = get_material(db, organization_id=organization_id, material_id=material_id)
+    MaterialRepository(db).soft_delete(material)
+    db.commit()
+
+
 def create_inventory_item(
     db: Session,
     *,
@@ -101,6 +136,35 @@ def get_inventory_item(db: Session, *, organization_id: UUID, item_id: UUID) -> 
     if item is None:
         raise InventoryItemNotFoundError(str(item_id))
     return item
+
+
+def update_inventory_item(
+    db: Session,
+    *,
+    organization_id: UUID,
+    item_id: UUID,
+    name: str | None,
+    minimum_stock: float | None,
+    unit_cost: float | None,
+    supplier: str | None,
+) -> InventoryItem:
+    item = get_inventory_item(db, organization_id=organization_id, item_id=item_id)
+    if name is not None:
+        item.name = name
+    if minimum_stock is not None:
+        item.minimum_stock = minimum_stock
+    if unit_cost is not None:
+        item.unit_cost = unit_cost
+    if supplier is not None:
+        item.supplier = supplier
+    db.commit()
+    return item
+
+
+def delete_inventory_item(db: Session, *, organization_id: UUID, item_id: UUID) -> None:
+    item = get_inventory_item(db, organization_id=organization_id, item_id=item_id)
+    InventoryItemRepository(db).soft_delete(item)
+    db.commit()
 
 
 def create_movement(

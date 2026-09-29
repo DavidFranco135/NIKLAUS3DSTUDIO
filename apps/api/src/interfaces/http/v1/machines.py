@@ -91,8 +91,23 @@ def update_machine(
             brand=payload.brand,
             model=payload.model,
             cost_per_hour=payload.cost_per_hour,
+            power_watts=payload.power_watts,
             status=payload.status,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return MachineResponse.model_validate(machine)
+
+
+@router.delete(
+    "/{machine_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_machine(organization_id: UUID, machine_id: UUID, db: Session = Depends(get_db)) -> None:
+    try:
+        machine_use_cases.delete_machine(
+            db, organization_id=organization_id, machine_id=machine_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc

@@ -14,6 +14,7 @@ from src.interfaces.http.v1.schemas import (
     CreateCostProfileRequest,
     CreateQuoteRequest,
     QuoteResponse,
+    UpdateCostProfileRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}", tags=["calculator"])
@@ -71,6 +72,67 @@ def get_cost_profile(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return CostProfileResponse.model_validate(profile)
+
+
+@router.patch(
+    "/cost-profiles/{cost_profile_id}",
+    response_model=CostProfileResponse,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def update_cost_profile(
+    organization_id: UUID,
+    cost_profile_id: UUID,
+    payload: UpdateCostProfileRequest,
+    db: Session = Depends(get_db),
+) -> CostProfileResponse:
+    try:
+        profile = calculator_use_cases.update_cost_profile(
+            db,
+            organization_id=organization_id,
+            cost_profile_id=cost_profile_id,
+            name=payload.name,
+            energy_cost_per_kwh=payload.energy_cost_per_kwh,
+            labor_cost_per_hour=payload.labor_cost_per_hour,
+            packaging_cost_flat=payload.packaging_cost_flat,
+            waste_percentage=payload.waste_percentage,
+            fees_percentage=payload.fees_percentage,
+            profit_margin_percentage=payload.profit_margin_percentage,
+            tax_percentage=payload.tax_percentage,
+            is_default=payload.is_default,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return CostProfileResponse.model_validate(profile)
+
+
+@router.delete(
+    "/cost-profiles/{cost_profile_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.MANAGER))],
+)
+def delete_cost_profile(
+    organization_id: UUID, cost_profile_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    try:
+        calculator_use_cases.delete_cost_profile(
+            db, organization_id=organization_id, cost_profile_id=cost_profile_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+
+
+@router.delete(
+    "/quotes/{quote_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def delete_quote(organization_id: UUID, quote_id: UUID, db: Session = Depends(get_db)) -> None:
+    try:
+        calculator_use_cases.delete_quote(
+            db, organization_id=organization_id, quote_id=quote_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
 
 
 @router.post(

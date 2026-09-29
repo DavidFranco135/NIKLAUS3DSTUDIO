@@ -22,6 +22,7 @@ export default function ProdutosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -97,38 +98,73 @@ export default function ProdutosPage() {
     setBomLines((lines) => lines.filter((_, i) => i !== index));
   }
 
-  async function handleCreate(event: React.FormEvent) {
+  function resetForm() {
+    setName("");
+    setDescription("");
+    setPrintTimeHours("");
+    setMachineId("");
+    setBomLines([{ material_id: "", quantity_g: "" }]);
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(product: Product) {
+    setEditingId(product.id);
+    setName(product.name);
+    setDescription(product.description ?? "");
+    setPrintTimeHours(product.print_time_hours != null ? String(product.print_time_hours) : "");
+    setMachineId(product.machine_id ?? "");
+    setBomLines(
+      product.materials.length > 0
+        ? product.materials.map((l) => ({
+            material_id: l.material_id,
+            quantity_g: String(l.quantity_g),
+          }))
+        : [{ material_id: "", quantity_g: "" }]
+    );
+    setShowForm(true);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
     const validLines = bomLines.filter((l) => l.material_id && l.quantity_g);
     setIsSaving(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/products`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          name,
-          description: description || null,
-          print_time_hours: printTimeHours ? Number(printTimeHours) : null,
-          machine_id: machineId || null,
-          materials: validLines.map((l) => ({
-            material_id: l.material_id,
-            quantity_g: Number(l.quantity_g),
-          })),
-        }),
+      const body = JSON.stringify({
+        name,
+        description: description || null,
+        print_time_hours: printTimeHours ? Number(printTimeHours) : null,
+        machine_id: machineId || null,
+        materials: validLines.map((l) => ({
+          material_id: l.material_id,
+          quantity_g: Number(l.quantity_g),
+        })),
       });
-      setName("");
-      setDescription("");
-      setPrintTimeHours("");
-      setMachineId("");
-      setBomLines([{ material_id: "", quantity_g: "" }]);
-      setShowForm(false);
+      if (editingId) {
+        await apiFetch(`${orgPath}/products/${editingId}`, { method: "PATCH", accessToken, body });
+      } else {
+        await apiFetch(`${orgPath}/products`, { method: "POST", accessToken, body });
+      }
+      resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar produto.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar produto.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(product: Product) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o produto "${product.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/products/${product.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir produto.");
     }
   }
 
@@ -159,7 +195,7 @@ export default function ProdutosPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-neutral-500">{products.length} produto(s) cadastrado(s)</p>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
             disabled={materials.length === 0}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50"
           >
@@ -169,7 +205,7 @@ export default function ProdutosPage() {
 
         {showForm && (
           <form
-            onSubmit={handleCreate}
+            onSubmit={handleSubmit}
             className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
@@ -228,7 +264,7 @@ export default function ProdutosPage() {
             </div>
 
             <button type="submit" disabled={isSaving} className="w-full rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50">
-              {isSaving ? "Salvando…" : "Salvar produto"}
+              {isSaving ? "Salvando…" : editingId ? "Salvar alterações" : "Salvar produto"}
             </button>
           </form>
         )}
@@ -277,6 +313,15 @@ export default function ProdutosPage() {
                       Cadastre um perfil de custo para ver o preço sugerido.
                     </p>
                   )}
+
+                  <div className="flex gap-3 border-t border-neutral-800 pt-2">
+                    <button onClick={() => startEdit(product)} className="text-xs text-blue-400 hover:underline">
+                      Editar
+                    </button>
+                    <button onClick={() => handleDelete(product)} className="text-xs text-red-400 hover:underline">
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               );
             })

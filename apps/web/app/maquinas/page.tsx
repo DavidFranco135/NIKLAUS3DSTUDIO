@@ -26,14 +26,16 @@ export default function MaquinasPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [technology, setTechnology] = useState("FDM");
   const [costPerHour, setCostPerHour] = useState("");
+  const [powerWatts, setPowerWatts] = useState("");
   const [volX, setVolX] = useState("");
   const [volY, setVolY] = useState("");
   const [volZ, setVolZ] = useState("");
@@ -63,40 +65,87 @@ export default function MaquinasPage() {
     return () => clearTimeout(timeoutId);
   }, [status, router, load]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function resetForm() {
+    setName("");
+    setBrand("");
+    setModel("");
+    setTechnology("FDM");
+    setCostPerHour("");
+    setPowerWatts("");
+    setVolX("");
+    setVolY("");
+    setVolZ("");
+    setEditingId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(m: Machine) {
+    setEditingId(m.id);
+    setName(m.name);
+    setBrand(m.brand ?? "");
+    setModel(m.model ?? "");
+    setTechnology(m.technology);
+    setCostPerHour(m.cost_per_hour != null ? String(m.cost_per_hour) : "");
+    setPowerWatts(m.power_watts != null ? String(m.power_watts) : "");
+    setVolX(m.build_volume_x_mm != null ? String(m.build_volume_x_mm) : "");
+    setVolY(m.build_volume_y_mm != null ? String(m.build_volume_y_mm) : "");
+    setVolZ(m.build_volume_z_mm != null ? String(m.build_volume_z_mm) : "");
+    setShowForm(true);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!accessToken) return;
-    setIsCreating(true);
+    setIsSaving(true);
     setError(null);
     try {
-      await apiFetch(`${orgPath}/machines`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          name,
-          brand: brand || null,
-          model: model || null,
-          technology,
-          cost_per_hour: costPerHour ? Number(costPerHour) : null,
-          build_volume_x_mm: volX ? Number(volX) : null,
-          build_volume_y_mm: volY ? Number(volY) : null,
-          build_volume_z_mm: volZ ? Number(volZ) : null,
-        }),
-      });
-      setName("");
-      setBrand("");
-      setModel("");
-      setTechnology("FDM");
-      setCostPerHour("");
-      setVolX("");
-      setVolY("");
-      setVolZ("");
-      setShowForm(false);
+      if (editingId) {
+        await apiFetch(`${orgPath}/machines/${editingId}`, {
+          method: "PATCH",
+          accessToken,
+          body: JSON.stringify({
+            name,
+            brand: brand || null,
+            model: model || null,
+            cost_per_hour: costPerHour ? Number(costPerHour) : null,
+            power_watts: powerWatts ? Number(powerWatts) : null,
+          }),
+        });
+      } else {
+        await apiFetch(`${orgPath}/machines`, {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({
+            name,
+            brand: brand || null,
+            model: model || null,
+            technology,
+            cost_per_hour: costPerHour ? Number(costPerHour) : null,
+            power_watts: powerWatts ? Number(powerWatts) : null,
+            build_volume_x_mm: volX ? Number(volX) : null,
+            build_volume_y_mm: volY ? Number(volY) : null,
+            build_volume_z_mm: volZ ? Number(volZ) : null,
+          }),
+        });
+      }
+      resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao criar máquina.");
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar máquina.");
     } finally {
-      setIsCreating(false);
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(m: Machine) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir a máquina "${m.name}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/machines/${m.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir máquina.");
     }
   }
 
@@ -116,7 +165,7 @@ export default function MaquinasPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-neutral-500">{machines.length} máquina(s) cadastrada(s)</p>
           <button
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
           >
             {showForm ? "Cancelar" : "+ Nova máquina"}
@@ -125,11 +174,11 @@ export default function MaquinasPage() {
 
         {showForm && (
           <form
-            onSubmit={handleCreate}
+            onSubmit={handleSubmit}
             className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <input required placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <select value={technology} onChange={(e) => setTechnology(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
+            <select value={technology} onChange={(e) => setTechnology(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50">
               <option value="FDM">FDM</option>
               <option value="SLA">SLA</option>
               <option value="MSLA">MSLA</option>
@@ -137,13 +186,14 @@ export default function MaquinasPage() {
             <input placeholder="Marca" value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input placeholder="Modelo" value={model} onChange={(e) => setModel(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <input type="number" step="0.01" placeholder="Custo por hora (R$)" value={costPerHour} onChange={(e) => setCostPerHour(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-            <div className="grid grid-cols-3 gap-2">
-              <input type="number" placeholder="X mm" value={volX} onChange={(e) => setVolX(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-              <input type="number" placeholder="Y mm" value={volY} onChange={(e) => setVolY(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
-              <input type="number" placeholder="Z mm" value={volZ} onChange={(e) => setVolZ(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+            <input type="number" step="1" placeholder="Potência (W)" value={powerWatts} onChange={(e) => setPowerWatts(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
+            <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+              <input type="number" placeholder="X mm" value={volX} onChange={(e) => setVolX(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50" />
+              <input type="number" placeholder="Y mm" value={volY} onChange={(e) => setVolY(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50" />
+              <input type="number" placeholder="Z mm" value={volZ} onChange={(e) => setVolZ(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50" />
             </div>
-            <button type="submit" disabled={isCreating} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
-              {isCreating ? "Salvando…" : "Salvar máquina"}
+            <button type="submit" disabled={isSaving} className="rounded bg-blue-600 px-4 py-2 font-medium disabled:opacity-50 sm:col-span-2">
+              {isSaving ? "Salvando…" : editingId ? "Salvar alterações" : "Salvar máquina"}
             </button>
           </form>
         )}
@@ -170,7 +220,17 @@ export default function MaquinasPage() {
                     Volume: {m.build_volume_x_mm ?? "—"} x {m.build_volume_y_mm ?? "—"} x {m.build_volume_z_mm ?? "—"} mm
                   </p>
                 )}
-                <p className="text-sm text-neutral-300">{formatCurrency(m.cost_per_hour)}/h</p>
+                <p className="text-sm text-neutral-300">
+                  {formatCurrency(m.cost_per_hour)}/h{m.power_watts ? ` · ${m.power_watts}W` : ""}
+                </p>
+                <div className="flex gap-3 border-t border-neutral-800 pt-2">
+                  <button onClick={() => startEdit(m)} className="text-sm text-blue-400 hover:underline">
+                    Editar
+                  </button>
+                  <button onClick={() => handleDelete(m)} className="text-sm text-red-400 hover:underline">
+                    Excluir
+                  </button>
+                </div>
               </div>
             ))
           )}
