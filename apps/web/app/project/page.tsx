@@ -25,6 +25,10 @@ function makeSeed(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+// Escondido a pedido do usuário — geração de modelos 3D por IA não está em uso
+// no momento. O código continua intacto abaixo; basta virar para true de novo.
+const SHOW_AI_GENERATION = false;
+
 export default function ProjectDetailPage() {
   return (
     <Suspense
@@ -330,6 +334,7 @@ function ProjectDetailPageInner() {
           </p>
         )}
 
+        {SHOW_AI_GENERATION && (
         <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:p-6">
           <div className="mb-4">
             <h2 className="text-lg font-medium">Gerar com IA</h2>
@@ -477,6 +482,7 @@ function ProjectDetailPageInner() {
             </div>
           </div>
         </div>
+        )}
 
         <form onSubmit={handleUpload} className="space-y-3 rounded border border-neutral-800 p-4">
           <h2 className="text-lg font-medium">Nova versão</h2>
