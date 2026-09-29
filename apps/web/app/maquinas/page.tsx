@@ -175,7 +175,7 @@ export default function MaquinasPage() {
         {showForm && (
           <form
             onSubmit={handleSubmit}
-            className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <input required placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
             <select value={technology} onChange={(e) => setTechnology(e.target.value)} disabled={!!editingId} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 disabled:opacity-50">
@@ -198,7 +198,7 @@ export default function MaquinasPage() {
           </form>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
             <p className="text-neutral-500">Carregando…</p>
           ) : machines.length === 0 ? (

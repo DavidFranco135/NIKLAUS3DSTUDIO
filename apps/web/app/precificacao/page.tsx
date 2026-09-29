@@ -389,7 +389,7 @@ export default function PrecificacaoPage() {
                   {showPrinterForm && (
                     <form
                       onSubmit={handleCreatePrinter}
-                      className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
+                      className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
                     >
                       <input required placeholder="Nome" value={newPrinterName} onChange={(e) => setNewPrinterName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
                       <input placeholder="Marca" value={newPrinterBrand} onChange={(e) => setNewPrinterBrand(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
@@ -402,7 +402,7 @@ export default function PrecificacaoPage() {
                     </form>
                   )}
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {machines.length === 0 ? (
                       <p className="text-sm text-neutral-500">
                         Nenhuma impressora salva ainda — cadastre a sua (ex: Bambu Lab A1) acima.
@@ -433,7 +433,7 @@ export default function PrecificacaoPage() {
                   )}
 
                   <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <label className="mb-1 block text-xs text-neutral-500">Impressora</label>
                         <select
@@ -491,28 +491,30 @@ export default function PrecificacaoPage() {
                           Itens adicionais (embalagem, argola, etiqueta, etc.)
                         </label>
                         {extraItems.map((item, index) => (
-                          <div key={index} className="flex gap-2">
+                          <div key={index} className="flex flex-col gap-2 sm:flex-row">
                             <input
                               placeholder="Nome (ex: Embalagem)"
                               value={item.name}
                               onChange={(e) => updateExtraItem(index, { name: e.target.value })}
-                              className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                              className="w-full min-w-0 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:flex-1"
                             />
-                            <input
-                              type="number"
-                              step="0.01"
-                              placeholder="Custo (R$)"
-                              value={item.cost}
-                              onChange={(e) => updateExtraItem(index, { cost: e.target.value })}
-                              className="w-28 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeExtraItem(index)}
-                              className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:border-red-700 hover:text-red-400"
-                            >
-                              Remover
-                            </button>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Custo (R$)"
+                                value={item.cost}
+                                onChange={(e) => updateExtraItem(index, { cost: e.target.value })}
+                                className="w-full min-w-0 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:w-28"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeExtraItem(index)}
+                                className="shrink-0 rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:border-red-700 hover:text-red-400"
+                              >
+                                Remover
+                              </button>
+                            </div>
                           </div>
                         ))}
                         <button type="button" onClick={addExtraItem} className="text-sm text-blue-400 hover:underline">
@@ -555,7 +557,7 @@ export default function PrecificacaoPage() {
                       {showAdvanced ? "Ocultar avançado" : "Avançado (energia, mão de obra)"}
                     </button>
                     {showAdvanced && (
-                      <div className="grid gap-3 border-t border-neutral-800 pt-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 border-t border-neutral-800 pt-3 sm:grid-cols-2">
                         <div>
                           <label className="mb-1 block text-xs text-neutral-500">Energia (kWh) — automático se a impressora tiver potência salva</label>
                           <input type="number" value={energyKwh.toFixed(3)} disabled className="w-full rounded border border-neutral-800 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-500" />

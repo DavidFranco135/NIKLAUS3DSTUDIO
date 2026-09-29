@@ -226,7 +226,7 @@ export default function CalculadoraPage() {
           {showProfileForm && (
             <form
               onSubmit={handleSubmitProfile}
-              className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-3"
+              className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-3"
             >
               <input required placeholder="Nome do perfil" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-3" />
               <input type="number" step="0.01" placeholder="Energia (R$/kWh)" value={energyCost} onChange={(e) => setEnergyCost(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
@@ -246,7 +246,7 @@ export default function CalculadoraPage() {
             </form>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {isLoading ? (
               <p className="text-sm text-neutral-500">Carregando…</p>
             ) : profiles.length === 0 ? (
@@ -279,7 +279,7 @@ export default function CalculadoraPage() {
           <h2 className="text-sm font-medium text-neutral-300">Novo orçamento</h2>
           <form
             onSubmit={handleCreateQuote}
-            className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <select required value={costProfileId} onChange={(e) => setCostProfileId(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
               <option value="">Perfil de custo…</option>

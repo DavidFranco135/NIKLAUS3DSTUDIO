@@ -243,7 +243,7 @@ export default function PedidosPage() {
         {showForm && (
           <form
             onSubmit={handleCreate}
-            className="grid gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4 sm:grid-cols-2"
           >
             <select required value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2">
               <option value="">Selecione o cliente…</option>

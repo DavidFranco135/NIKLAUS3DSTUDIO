@@ -208,7 +208,7 @@ export default function ProdutosPage() {
             onSubmit={handleSubmit}
             className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4"
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input required placeholder="Nome do produto" value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-2" />
               <input placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-2" />
               <input type="number" step="0.01" placeholder="Tempo de impressão (h)" value={printTimeHours} onChange={(e) => setPrintTimeHours(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" />
@@ -225,33 +225,35 @@ export default function ProdutosPage() {
                 Quanto material esse produto consome por unidade
               </p>
               {bomLines.map((line, index) => (
-                <div key={index} className="flex gap-2">
+                <div key={index} className="flex flex-col gap-2 sm:flex-row">
                   <select
                     value={line.material_id}
                     onChange={(e) => updateBomLine(index, { material_id: e.target.value })}
-                    className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                    className="w-full min-w-0 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:flex-1"
                   >
                     <option value="">Selecione o material…</option>
                     {materials.map((m) => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Gramas"
-                    value={line.quantity_g}
-                    onChange={(e) => updateBomLine(index, { quantity_g: e.target.value })}
-                    className="w-28 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeBomLine(index)}
-                    disabled={bomLines.length === 1}
-                    className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:border-red-700 hover:text-red-400 disabled:opacity-30"
-                  >
-                    Remover
-                  </button>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Gramas"
+                      value={line.quantity_g}
+                      onChange={(e) => updateBomLine(index, { quantity_g: e.target.value })}
+                      className="w-full min-w-0 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:w-28"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBomLine(index)}
+                      disabled={bomLines.length === 1}
+                      className="shrink-0 rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-400 hover:border-red-700 hover:text-red-400 disabled:opacity-30"
+                    >
+                      Remover
+                    </button>
+                  </div>
                 </div>
               ))}
               <button
@@ -269,7 +271,7 @@ export default function ProdutosPage() {
           </form>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {isLoading ? (
             <p className="text-neutral-500">Carregando…</p>
           ) : products.length === 0 ? (
