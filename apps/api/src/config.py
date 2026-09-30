@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     celery_task_always_eager: bool = False
 
     firestore_project_id: str = "niklaus3d"
+    # "postgres" (default, today's unchanged production behavior) or
+    # "firestore" - the Phase 5 cutover switch from the Firebase migration
+    # plan. AI features (application/ai/*) stay SQL-only regardless of
+    # this flag - see the plan's guiding decision #5.
+    db_backend: str = "postgres"
 
     @property
     def cors_origins_list(self) -> list[str]:

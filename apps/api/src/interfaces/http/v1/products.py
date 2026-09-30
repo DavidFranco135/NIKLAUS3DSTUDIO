@@ -19,7 +19,9 @@ router = APIRouter(prefix="/organizations/{organization_id}/products", tags=["pr
 
 
 def _to_response(db: Session, product) -> ProductResponse:
-    materials = product_use_cases.list_product_materials(db, product_id=product.id)
+    materials = product_use_cases.list_product_materials(
+        db, organization_id=product.organization_id, product_id=product.id
+    )
     return ProductResponse(
         id=product.id,
         name=product.name,

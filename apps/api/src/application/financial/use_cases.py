@@ -10,7 +10,7 @@ from src.domain.financial.summary import (
 )
 from src.domain.shared.exceptions import FinancialTransactionNotFoundError, OrderNotFoundError
 from src.infrastructure.db.models import FinancialTransaction
-from src.infrastructure.db.repositories import FinancialTransactionRepository, OrderRepository
+from src.infrastructure.repositories import FinancialTransactionRepository, OrderRepository
 
 
 def create_transaction(

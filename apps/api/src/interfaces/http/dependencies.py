@@ -8,8 +8,8 @@ from src.domain.auth.roles import Role, role_at_least
 from src.domain.shared.security import decode_access_token
 from src.domain.shared.storage_port import StorageProvider
 from src.infrastructure.db.models import OrgMember, User
-from src.infrastructure.db.repositories import OrgMemberRepository, UserRepository
-from src.infrastructure.db.session import get_db
+from src.infrastructure.repositories import OrgMemberRepository, UserRepository
+from src.infrastructure.session_factory import get_db
 from src.infrastructure.storage.s3_storage import get_storage_provider
 
 

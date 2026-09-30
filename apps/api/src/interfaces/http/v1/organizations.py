@@ -7,7 +7,7 @@ from src.application.organizations import use_cases
 from src.domain.auth.roles import Role
 from src.domain.shared.exceptions import DomainError
 from src.infrastructure.db.models import OrgMember, User
-from src.infrastructure.db.repositories import OrganizationRepository, UserRepository
+from src.infrastructure.repositories import OrganizationRepository, UserRepository
 from src.interfaces.http.dependencies import get_current_user, get_db, require_org_role
 from src.interfaces.http.errors import as_http_exception
 from src.interfaces.http.v1.schemas import (

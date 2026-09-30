@@ -12,7 +12,7 @@ from src.domain.shared.exceptions import (
     UserNotFoundError,
 )
 from src.infrastructure.db.models import Organization, OrgMember
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     OrganizationRepository,
     OrgMemberRepository,
     UserRepository,

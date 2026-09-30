@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.shared.exceptions import MachineNotFoundError
 from src.infrastructure.db.models import Machine
-from src.infrastructure.db.repositories import MachineRepository
+from src.infrastructure.repositories import MachineRepository
 
 
 def create_machine(

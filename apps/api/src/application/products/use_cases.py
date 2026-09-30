@@ -11,7 +11,7 @@ from src.domain.calculator.profile import CostProfileValues
 from src.domain.calculator.report import CostBreakdown
 from src.domain.shared.exceptions import ProductNotFoundError
 from src.infrastructure.db.models import Product
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     ProductMaterialRepository,
     ProductRepository,
 )
@@ -48,6 +48,7 @@ def create_product(
     material_repo = ProductMaterialRepository(db)
     for line in materials:
         material_repo.create(
+            organization_id=organization_id,
             product_id=product.id,
             material_id=line["material_id"],
             quantity_g=line["quantity_g"],
@@ -67,8 +68,10 @@ def get_product(db: Session, *, organization_id: UUID, product_id: UUID) -> Prod
     return product
 
 
-def list_product_materials(db: Session, *, product_id: UUID) -> list[dict]:
-    lines = ProductMaterialRepository(db).list_for_product(product_id)
+def list_product_materials(
+    db: Session, *, organization_id: UUID, product_id: UUID
+) -> list[dict]:
+    lines = ProductMaterialRepository(db).list_for_product(organization_id, product_id)
     return [{"material_id": line.material_id, "quantity_g": line.quantity_g} for line in lines]
 
 
@@ -102,9 +105,10 @@ def update_product(
         for line in materials:
             get_material(db, organization_id=organization_id, material_id=line["material_id"])
         material_repo = ProductMaterialRepository(db)
-        material_repo.delete_for_product(product.id)
+        material_repo.delete_for_product(organization_id, product.id)
         for line in materials:
             material_repo.create(
+                organization_id=organization_id,
                 product_id=product.id,
                 material_id=line["material_id"],
                 quantity_g=line["quantity_g"],
@@ -139,7 +143,7 @@ def compute_product_cost(
     profile = get_cost_profile(db, organization_id=organization_id, cost_profile_id=cost_profile_id)
 
     material_cost = 0.0
-    for line in ProductMaterialRepository(db).list_for_product(product.id):
+    for line in ProductMaterialRepository(db).list_for_product(organization_id, product.id):
         material = get_material(db, organization_id=organization_id, material_id=line.material_id)
         cost_per_kg = material.cost_per_kg or 0.0
         material_cost += (line.quantity_g / 1000.0) * cost_per_kg

@@ -8,7 +8,7 @@ from src.application.financial.use_cases import get_financial_summary
 from src.application.inventory.use_cases import list_inventory_items
 from src.domain.dashboard.aggregation import count_by_status
 from src.domain.financial.summary import FinancialSummary
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     CustomerRepository,
     OrderRepository,
     ProjectRepository,

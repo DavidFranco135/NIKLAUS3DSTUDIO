@@ -1330,8 +1330,8 @@ class PlanEntitlementRepository:
         plan_id: UUID,
         key: str,
         limit_type: str,
-        bool_value: bool | None,
-        numeric_value: float | None,
+        bool_value: bool | None = None,
+        numeric_value: float | None = None,
     ) -> PlanEntitlement:
         entitlement = PlanEntitlement(
             plan_id=plan_id,

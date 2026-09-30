@@ -19,7 +19,7 @@ from src.domain.shared.security import (
     verify_password,
 )
 from src.infrastructure.db.models import Organization, User
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     OrganizationRepository,
     OrgMemberRepository,
     RefreshTokenRepository,

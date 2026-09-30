@@ -216,14 +216,23 @@ class ProjectVersionRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def get(self, project_id: UUID, version_id: UUID) -> ProjectVersion | None:
+    # organization_id params below are unused - ProjectVersion has no
+    # column for it - accepted only so this matches the Firestore
+    # repository's signature (see infrastructure/repositories.py), whose
+    # versions live in a subcollection under the org.
+
+    def get(
+        self, organization_id: UUID, project_id: UUID, version_id: UUID
+    ) -> ProjectVersion | None:
         return self.session.scalar(
             select(ProjectVersion).where(
                 ProjectVersion.id == version_id, ProjectVersion.project_id == project_id
             )
         )
 
-    def list_for_project(self, project_id: UUID) -> list[ProjectVersion]:
+    def list_for_project(
+        self, organization_id: UUID, project_id: UUID
+    ) -> list[ProjectVersion]:
         return list(
             self.session.scalars(
                 select(ProjectVersion)
@@ -232,7 +241,7 @@ class ProjectVersionRepository:
             )
         )
 
-    def next_version_number(self, project_id: UUID) -> int:
+    def next_version_number(self, organization_id: UUID, project_id: UUID) -> int:
         current_max = self.session.scalar(
             select(ProjectVersion.version_number)
             .where(ProjectVersion.project_id == project_id)
@@ -244,6 +253,7 @@ class ProjectVersionRepository:
     def create(
         self,
         *,
+        organization_id: UUID,
         project_id: UUID,
         version_number: int,
         label: str | None,
@@ -285,11 +295,16 @@ class FileAssetRepository:
             or 0
         )
 
-    def list_for_version(self, project_version_id: UUID) -> list[FileAsset]:
+    def list_for_version(
+        self, organization_id: UUID, project_version_id: UUID
+    ) -> list[FileAsset]:
         return list(
             self.session.scalars(
                 select(FileAsset)
-                .where(FileAsset.project_version_id == project_version_id)
+                .where(
+                    FileAsset.project_version_id == project_version_id,
+                    FileAsset.organization_id == organization_id,
+                )
                 .order_by(FileAsset.created_at)
             )
         )
@@ -787,7 +802,11 @@ class ProductMaterialRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def list_for_product(self, product_id: UUID) -> list[ProductMaterial]:
+    def list_for_product(self, organization_id: UUID, product_id: UUID) -> list[ProductMaterial]:
+        # organization_id is unused here - ProductMaterial has no column
+        # for it - accepted only so this matches the Firestore
+        # repository's signature (see infrastructure/repositories.py),
+        # whose BOM lines live in a subcollection under the org.
         return list(
             self.session.scalars(
                 select(ProductMaterial).where(ProductMaterial.product_id == product_id)
@@ -795,7 +814,7 @@ class ProductMaterialRepository:
         )
 
     def create(
-        self, *, product_id: UUID, material_id: UUID, quantity_g: float
+        self, *, organization_id: UUID, product_id: UUID, material_id: UUID, quantity_g: float
     ) -> ProductMaterial:
         line = ProductMaterial(
             product_id=product_id, material_id=material_id, quantity_g=quantity_g
@@ -804,8 +823,8 @@ class ProductMaterialRepository:
         self.session.flush()
         return line
 
-    def delete_for_product(self, product_id: UUID) -> None:
-        for line in self.list_for_product(product_id):
+    def delete_for_product(self, organization_id: UUID, product_id: UUID) -> None:
+        for line in self.list_for_product(organization_id, product_id):
             self.session.delete(line)
         self.session.flush()
 
@@ -876,11 +895,16 @@ class InventoryMovementRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def list_for_item(self, inventory_item_id: UUID) -> list[InventoryMovement]:
+    def list_for_item(
+        self, organization_id: UUID, inventory_item_id: UUID
+    ) -> list[InventoryMovement]:
         return list(
             self.session.scalars(
                 select(InventoryMovement)
-                .where(InventoryMovement.inventory_item_id == inventory_item_id)
+                .where(
+                    InventoryMovement.inventory_item_id == inventory_item_id,
+                    InventoryMovement.organization_id == organization_id,
+                )
                 .order_by(InventoryMovement.created_at.desc())
             )
         )
@@ -1037,16 +1061,27 @@ class OrderItemRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def get(self, order_id: UUID, item_id: UUID) -> OrderItem | None:
+    def get(self, organization_id: UUID, order_id: UUID, item_id: UUID) -> OrderItem | None:
+        # organization_id isn't load-bearing here (order_id already pins
+        # the tenant) - accepted so this matches the Firestore repository's
+        # signature (see infrastructure/repositories.py), and used as a
+        # defense-in-depth filter since the column exists.
         return self.session.scalar(
-            select(OrderItem).where(OrderItem.id == item_id, OrderItem.order_id == order_id)
+            select(OrderItem).where(
+                OrderItem.id == item_id,
+                OrderItem.order_id == order_id,
+                OrderItem.organization_id == organization_id,
+            )
         )
 
-    def list_for_order(self, order_id: UUID) -> list[OrderItem]:
+    def list_for_order(self, organization_id: UUID, order_id: UUID) -> list[OrderItem]:
         return list(
             self.session.scalars(
                 select(OrderItem)
-                .where(OrderItem.order_id == order_id)
+                .where(
+                    OrderItem.order_id == order_id,
+                    OrderItem.organization_id == organization_id,
+                )
                 .order_by(OrderItem.created_at)
             )
         )
@@ -1248,6 +1283,14 @@ class PlanRepository:
             )
         )
 
+    def create(
+        self, *, code: str, name: str, is_active: bool, trial_period_days: int | None
+    ) -> Plan:
+        plan = Plan(code=code, name=name, is_active=is_active, trial_period_days=trial_period_days)
+        self.session.add(plan)
+        self.session.flush()
+        return plan
+
 
 class PlanEntitlementRepository:
     def __init__(self, session: Session) -> None:
@@ -1266,6 +1309,26 @@ class PlanEntitlementRepository:
                 select(PlanEntitlement).where(PlanEntitlement.plan_id == plan_id)
             )
         )
+
+    def create(
+        self,
+        *,
+        plan_id: UUID,
+        key: str,
+        limit_type: str,
+        bool_value: bool | None = None,
+        numeric_value: float | None = None,
+    ) -> PlanEntitlement:
+        entitlement = PlanEntitlement(
+            plan_id=plan_id,
+            key=key,
+            limit_type=limit_type,
+            bool_value=bool_value,
+            numeric_value=numeric_value,
+        )
+        self.session.add(entitlement)
+        self.session.flush()
+        return entitlement
 
 
 class SubscriptionRepository:

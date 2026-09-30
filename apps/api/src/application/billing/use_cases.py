@@ -15,8 +15,8 @@ from src.domain.shared.exceptions import (
 )
 from src.infrastructure.billing_providers.registry import get_billing_provider
 from src.infrastructure.db.models import BillingEvent, Plan, PlanEntitlement, Subscription
-from src.infrastructure.db.repositories import (
-    AIJobRepository,
+from src.infrastructure.db.repositories import AIJobRepository
+from src.infrastructure.repositories import (
     BillingEventRepository,
     FileAssetRepository,
     PlanEntitlementRepository,
@@ -87,11 +87,15 @@ def get_default_plan(db: Session) -> Plan:
     if plan is not None:
         return plan
 
-    plan = Plan(code=DEFAULT_PLAN_CODE, name="Desenvolvimento (interno, sem custo real)")
-    db.add(plan)
-    db.flush()
+    plan = plan_repo.create(
+        code=DEFAULT_PLAN_CODE,
+        name="Desenvolvimento (interno, sem custo real)",
+        is_active=True,
+        trial_period_days=None,
+    )
+    entitlement_repo = PlanEntitlementRepository(db)
     for entitlement in _DEV_PLAN_ENTITLEMENTS:
-        db.add(PlanEntitlement(plan_id=plan.id, **entitlement))
+        entitlement_repo.create(plan_id=plan.id, **entitlement)
     db.commit()
     return plan
 

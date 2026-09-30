@@ -12,7 +12,7 @@ from src.domain.shared.exceptions import (
 from src.domain.shared.file_kinds import ALLOWED_FILE_KINDS
 from src.domain.shared.storage_port import StorageProvider
 from src.infrastructure.db.models import FileAsset
-from src.infrastructure.db.repositories import FileAssetRepository
+from src.infrastructure.repositories import FileAssetRepository
 
 UPLOAD_URL_EXPIRES_IN = 900
 DOWNLOAD_URL_EXPIRES_IN = 300

@@ -17,7 +17,7 @@ from src.domain.shared.exceptions import (
     QuoteNotFoundError,
 )
 from src.infrastructure.db.models import Order, OrderItem
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     OrderItemRepository,
     OrderRepository,
     ProjectVersionRepository,
@@ -135,7 +135,9 @@ def add_order_item(
         if project_id is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
         get_project(db, organization_id=organization_id, project_id=project_id)
-        version = ProjectVersionRepository(db).get(project_id, project_version_id)
+        version = ProjectVersionRepository(db).get(
+            organization_id, project_id, project_version_id
+        )
         if version is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
 
@@ -161,29 +163,31 @@ def add_order_item(
         unit_price=unit_price,
     )
 
-    items = item_repo.list_for_order(order.id)
+    items = item_repo.list_for_order(organization_id, order.id)
     new_total = compute_total_amount(
         [OrderItemTotal(quantity=i.quantity, unit_price=i.unit_price) for i in items]
     )
     OrderRepository(db).update_total_amount(order, total_amount=new_total)
     db.commit()
-    return item_repo.list_for_order(order.id)[-1]
+    return item_repo.list_for_order(organization_id, order.id)[-1]
 
 
 def list_order_items(db: Session, *, organization_id: UUID, order_id: UUID) -> list[OrderItem]:
     get_order(db, organization_id=organization_id, order_id=order_id)
-    return OrderItemRepository(db).list_for_order(order_id)
+    return OrderItemRepository(db).list_for_order(organization_id, order_id)
 
 
-def _get_order_item(db: Session, *, order_id: UUID, item_id: UUID) -> OrderItem:
-    item = OrderItemRepository(db).get(order_id, item_id)
+def _get_order_item(
+    db: Session, *, organization_id: UUID, order_id: UUID, item_id: UUID
+) -> OrderItem:
+    item = OrderItemRepository(db).get(organization_id, order_id, item_id)
     if item is None:
         raise OrderItemNotFoundError(str(item_id))
     return item
 
 
-def _recompute_order_total(db: Session, *, order: Order) -> None:
-    items = OrderItemRepository(db).list_for_order(order.id)
+def _recompute_order_total(db: Session, *, organization_id: UUID, order: Order) -> None:
+    items = OrderItemRepository(db).list_for_order(organization_id, order.id)
     new_total = compute_total_amount(
         [OrderItemTotal(quantity=i.quantity, unit_price=i.unit_price) for i in items]
     )
@@ -201,11 +205,11 @@ def update_order_item(
     unit_price: float | None,
 ) -> OrderItem:
     order = get_order(db, organization_id=organization_id, order_id=order_id)
-    item = _get_order_item(db, order_id=order_id, item_id=item_id)
+    item = _get_order_item(db, organization_id=organization_id, order_id=order_id, item_id=item_id)
     OrderItemRepository(db).update(
         item, quantity=quantity, unit_cost=unit_cost, unit_price=unit_price
     )
-    _recompute_order_total(db, order=order)
+    _recompute_order_total(db, organization_id=organization_id, order=order)
     db.commit()
     return item
 
@@ -214,7 +218,7 @@ def delete_order_item(
     db: Session, *, organization_id: UUID, order_id: UUID, item_id: UUID
 ) -> None:
     order = get_order(db, organization_id=organization_id, order_id=order_id)
-    item = _get_order_item(db, order_id=order_id, item_id=item_id)
+    item = _get_order_item(db, organization_id=organization_id, order_id=order_id, item_id=item_id)
     OrderItemRepository(db).delete(item)
-    _recompute_order_total(db, order=order)
+    _recompute_order_total(db, organization_id=organization_id, order=order)
     db.commit()

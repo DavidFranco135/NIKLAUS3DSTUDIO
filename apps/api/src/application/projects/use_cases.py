@@ -11,7 +11,7 @@ from src.domain.shared.exceptions import (
     ProjectVersionNotFoundError,
 )
 from src.infrastructure.db.models import FileAsset, Project, ProjectVersion
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     FileAssetRepository,
     ProjectRepository,
     ProjectVersionRepository,
@@ -85,7 +85,7 @@ def delete_project(db: Session, *, organization_id: UUID, project_id: UUID) -> N
 
 def list_versions(db: Session, *, organization_id: UUID, project_id: UUID) -> list[ProjectVersion]:
     get_project(db, organization_id=organization_id, project_id=project_id)
-    return ProjectVersionRepository(db).list_for_project(project_id)
+    return ProjectVersionRepository(db).list_for_project(organization_id, project_id)
 
 
 def create_version(
@@ -108,8 +108,9 @@ def create_version(
 
     version_repo = ProjectVersionRepository(db)
     version = version_repo.create(
+        organization_id=organization_id,
         project_id=project.id,
-        version_number=version_repo.next_version_number(project.id),
+        version_number=version_repo.next_version_number(organization_id, project.id),
         label=label,
         source_type="manual_upload",
         created_by=created_by,
@@ -124,17 +125,17 @@ def list_version_files(
     db: Session, *, organization_id: UUID, project_id: UUID, version_id: UUID
 ) -> list[FileAsset]:
     get_project(db, organization_id=organization_id, project_id=project_id)
-    version = ProjectVersionRepository(db).get(project_id, version_id)
+    version = ProjectVersionRepository(db).get(organization_id, project_id, version_id)
     if version is None:
         raise ProjectVersionNotFoundError(str(version_id))
-    return FileAssetRepository(db).list_for_version(version_id)
+    return FileAssetRepository(db).list_for_version(organization_id, version_id)
 
 
 def activate_version(
     db: Session, *, organization_id: UUID, project_id: UUID, version_id: UUID
 ) -> Project:
     project = get_project(db, organization_id=organization_id, project_id=project_id)
-    version = ProjectVersionRepository(db).get(project_id, version_id)
+    version = ProjectVersionRepository(db).get(organization_id, project_id, version_id)
     if version is None:
         raise ProjectVersionNotFoundError(str(version_id))
 

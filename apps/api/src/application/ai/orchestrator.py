@@ -219,8 +219,11 @@ def execute_job(
             if project is not None:
                 version_repo = ProjectVersionRepository(db)
                 version = version_repo.create(
+                    organization_id=organization_id,
                     project_id=project.id,
-                    version_number=version_repo.next_version_number(project.id),
+                    version_number=version_repo.next_version_number(
+                        organization_id, project.id
+                    ),
                     label=f"Gerado por IA ({job.task_type})",
                     source_type=_VERSION_SOURCE_TYPE_BY_TASK[task_type],
                     created_by=job.requested_by,

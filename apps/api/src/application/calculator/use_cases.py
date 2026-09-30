@@ -16,7 +16,7 @@ from src.domain.shared.exceptions import (
     QuoteNotFoundError,
 )
 from src.infrastructure.db.models import CostProfile, Quote
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     CostProfileRepository,
     ProjectVersionRepository,
     QuoteRepository,
@@ -153,7 +153,9 @@ def create_quote(
         if project_id is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
         get_project(db, organization_id=organization_id, project_id=project_id)
-        version = ProjectVersionRepository(db).get(project_id, project_version_id)
+        version = ProjectVersionRepository(db).get(
+            organization_id, project_id, project_version_id
+        )
         if version is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
 

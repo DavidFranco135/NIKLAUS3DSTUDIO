@@ -3,7 +3,7 @@ import secrets
 from sqlalchemy.orm import Session
 
 from src.domain.shared.slug import slugify
-from src.infrastructure.db.repositories import OrganizationRepository
+from src.infrastructure.repositories import OrganizationRepository
 
 
 def unique_org_slug(db: Session, name: str) -> str:

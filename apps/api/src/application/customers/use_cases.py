@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.shared.exceptions import CustomerNotFoundError
 from src.infrastructure.db.models import Customer
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     CustomerRepository,
     OrderRepository,
     ProjectRepository,

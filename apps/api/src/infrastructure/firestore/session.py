@@ -78,3 +78,10 @@ class FirestoreSession:
     def rollback(self) -> None:
         self._tracked.clear()
         self._pending_deletes.clear()
+
+    def close(self) -> None:
+        """No-op - matches SQLAlchemy Session's interface for get_db()'s
+
+        `finally: db.close()`. The Firestore client itself is a
+        long-lived singleton (see client.py), not a per-request resource.
+        """

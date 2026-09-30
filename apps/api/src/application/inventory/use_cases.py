@@ -14,7 +14,7 @@ from src.domain.shared.exceptions import (
     OrderNotFoundError,
 )
 from src.infrastructure.db.models import InventoryItem, InventoryMovement, Material
-from src.infrastructure.db.repositories import (
+from src.infrastructure.repositories import (
     InventoryItemRepository,
     InventoryMovementRepository,
     MaterialRepository,
@@ -207,4 +207,4 @@ def create_movement(
 
 def list_movements(db: Session, *, organization_id: UUID, item_id: UUID) -> list[InventoryMovement]:
     get_inventory_item(db, organization_id=organization_id, item_id=item_id)
-    return InventoryMovementRepository(db).list_for_item(item_id)
+    return InventoryMovementRepository(db).list_for_item(organization_id, item_id)
