@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     celery_task_always_eager: bool = False
 
+    firestore_project_id: str = "niklaus3d"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.api_cors_origins.split(",") if origin.strip()]
