@@ -33,3 +33,7 @@ Thumbs.db
 
 # Docker volumes data (if bind-mounted locally)
 infra/.data/
+
+# Firebase
+firebase-debug.log
+.firebase/

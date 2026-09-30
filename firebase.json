@@ -1,0 +1,24 @@
+{
+  "functions": [
+    {
+      "source": "infra/firebase/functions",
+      "codebase": "api",
+      "runtime": "python312"
+    }
+  ],
+  "firestore": {
+    "rules": "infra/firebase/firestore.rules",
+    "indexes": "infra/firebase/firestore.indexes.json"
+  },
+  "emulators": {
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    }
+  }
+}
