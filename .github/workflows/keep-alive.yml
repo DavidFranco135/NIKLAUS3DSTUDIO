@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping health endpoint
-        run: curl -fsS --max-time 100 https://niklaus3dstudio.onrender.com/api/v1/health
+        run: curl -fsS --max-time 150 https://niklaus3dstudio.onrender.com/api/v1/health
