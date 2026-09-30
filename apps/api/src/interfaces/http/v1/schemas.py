@@ -308,6 +308,11 @@ class OrderResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UpdateOrderRequest(BaseModel):
+    customer_id: UUID | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+
+
 class TransitionOrderStatusRequest(BaseModel):
     status: str = Field(
         pattern="^(quote|order|paid|production|printing|finishing|packaging|delivered"
@@ -330,6 +335,12 @@ class CreateOrderItemRequest(BaseModel):
         if (self.project_id is None) != (self.project_version_id is None):
             raise ValueError("Informe project_id e project_version_id juntos, ou nenhum dos dois.")
         return self
+
+
+class UpdateOrderItemRequest(BaseModel):
+    quantity: int | None = Field(default=None, ge=1)
+    unit_cost: float | None = Field(default=None, ge=0)
+    unit_price: float | None = Field(default=None, ge=0)
 
 
 class OrderItemResponse(BaseModel):

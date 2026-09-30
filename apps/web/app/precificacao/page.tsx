@@ -108,6 +108,7 @@ export default function PrecificacaoPage() {
   const [editQuantity, setEditQuantity] = useState("1");
   const [editFinalPrice, setEditFinalPrice] = useState("");
   const [isSavingPieceEdit, setIsSavingPieceEdit] = useState(false);
+  const [addedToProductsIds, setAddedToProductsIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!accessToken || !currentOrganizationId) return;
@@ -355,7 +356,26 @@ export default function PrecificacaoPage() {
           profit_margin_percentage: marginPercentNum,
         }),
       });
-      setMessage("Peça salva na lista.");
+
+      let productMessage = "Peça salva na lista.";
+      try {
+        await apiFetch(`${orgPath}/products`, {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({
+            name: pieceName,
+            description: null,
+            print_time_hours: printTimeHoursNum || null,
+            machine_id: printerId || null,
+            materials: materialId ? [{ material_id: materialId, quantity_g: weightGNum }] : [],
+          }),
+        });
+        productMessage = "Peça salva na lista e adicionada aos Produtos.";
+      } catch {
+        productMessage = "Peça salva na lista, mas falhou ao adicionar aos Produtos — adicione manualmente na aba Produtos se precisar.";
+      }
+
+      setMessage(productMessage);
       setPieceName("");
       setExtraItems([]);
       await load();
@@ -406,6 +426,28 @@ export default function PrecificacaoPage() {
       setError(err instanceof ApiError ? err.message : "Falha ao salvar peça.");
     } finally {
       setIsSavingPieceEdit(false);
+    }
+  }
+
+  async function handleAddPieceToProducts(q: Quote) {
+    if (!accessToken || !q.piece_name) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/products`, {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({
+          name: q.piece_name,
+          description: null,
+          print_time_hours: null,
+          machine_id: null,
+          materials: [],
+        }),
+      });
+      setAddedToProductsIds((prev) => [...prev, q.id]);
+      setMessage(`"${q.piece_name}" adicionado aos Produtos.`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao adicionar aos produtos.");
     }
   }
 
@@ -851,6 +893,13 @@ export default function PrecificacaoPage() {
                                 </td>
                                 <td className="px-3 py-3 text-neutral-500">{formatDateTime(q.created_at)}</td>
                                 <td className="px-3 py-3 text-right space-x-3">
+                                  <button
+                                    onClick={() => handleAddPieceToProducts(q)}
+                                    disabled={addedToProductsIds.includes(q.id)}
+                                    className="text-sm text-green-400 hover:underline disabled:no-underline disabled:opacity-40"
+                                  >
+                                    {addedToProductsIds.includes(q.id) ? "Adicionado" : "Adicionar aos produtos"}
+                                  </button>
                                   <button onClick={() => startEditPiece(q)} className="text-sm text-blue-400 hover:underline">
                                     Editar
                                   </button>

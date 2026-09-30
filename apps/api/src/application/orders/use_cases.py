@@ -11,6 +11,7 @@ from src.application.projects.use_cases import get_project
 from src.domain.orders.status import validate_transition
 from src.domain.orders.totals import OrderItemTotal, compute_total_amount
 from src.domain.shared.exceptions import (
+    OrderItemNotFoundError,
     OrderNotFoundError,
     ProjectVersionNotFoundError,
     QuoteNotFoundError,
@@ -65,6 +66,30 @@ def get_order(db: Session, *, organization_id: UUID, order_id: UUID) -> Order:
     if order is None:
         raise OrderNotFoundError(str(order_id))
     return order
+
+
+def update_order(
+    db: Session,
+    *,
+    organization_id: UUID,
+    order_id: UUID,
+    customer_id: UUID | None,
+    notes: str | None,
+) -> Order:
+    order = get_order(db, organization_id=organization_id, order_id=order_id)
+    if customer_id is not None:
+        get_customer(db, organization_id=organization_id, customer_id=customer_id)
+        order.customer_id = customer_id
+    if notes is not None:
+        order.notes = notes
+    db.commit()
+    return order
+
+
+def delete_order(db: Session, *, organization_id: UUID, order_id: UUID) -> None:
+    order = get_order(db, organization_id=organization_id, order_id=order_id)
+    OrderRepository(db).soft_delete(order)
+    db.commit()
 
 
 def transition_order_status(
@@ -148,3 +173,48 @@ def add_order_item(
 def list_order_items(db: Session, *, organization_id: UUID, order_id: UUID) -> list[OrderItem]:
     get_order(db, organization_id=organization_id, order_id=order_id)
     return OrderItemRepository(db).list_for_order(order_id)
+
+
+def _get_order_item(db: Session, *, order_id: UUID, item_id: UUID) -> OrderItem:
+    item = OrderItemRepository(db).get(order_id, item_id)
+    if item is None:
+        raise OrderItemNotFoundError(str(item_id))
+    return item
+
+
+def _recompute_order_total(db: Session, *, order: Order) -> None:
+    items = OrderItemRepository(db).list_for_order(order.id)
+    new_total = compute_total_amount(
+        [OrderItemTotal(quantity=i.quantity, unit_price=i.unit_price) for i in items]
+    )
+    OrderRepository(db).update_total_amount(order, total_amount=new_total)
+
+
+def update_order_item(
+    db: Session,
+    *,
+    organization_id: UUID,
+    order_id: UUID,
+    item_id: UUID,
+    quantity: int | None,
+    unit_cost: float | None,
+    unit_price: float | None,
+) -> OrderItem:
+    order = get_order(db, organization_id=organization_id, order_id=order_id)
+    item = _get_order_item(db, order_id=order_id, item_id=item_id)
+    OrderItemRepository(db).update(
+        item, quantity=quantity, unit_cost=unit_cost, unit_price=unit_price
+    )
+    _recompute_order_total(db, order=order)
+    db.commit()
+    return item
+
+
+def delete_order_item(
+    db: Session, *, organization_id: UUID, order_id: UUID, item_id: UUID
+) -> None:
+    order = get_order(db, organization_id=organization_id, order_id=order_id)
+    item = _get_order_item(db, order_id=order_id, item_id=item_id)
+    OrderItemRepository(db).delete(item)
+    _recompute_order_total(db, order=order)
+    db.commit()

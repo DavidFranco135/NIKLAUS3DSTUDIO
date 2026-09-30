@@ -65,6 +65,17 @@ export default function PedidosPage() {
   const [isPricingItem, setIsPricingItem] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
 
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editCustomerId, setEditCustomerId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [isSavingOrderEdit, setIsSavingOrderEdit] = useState(false);
+
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editItemQuantity, setEditItemQuantity] = useState("1");
+  const [editItemUnitCost, setEditItemUnitCost] = useState("");
+  const [editItemUnitPrice, setEditItemUnitPrice] = useState("");
+  const [isSavingItemEdit, setIsSavingItemEdit] = useState(false);
+
   const orgPath = `/api/v1/organizations/${currentOrganizationId}`;
 
   const customerName = useCallback(
@@ -144,6 +155,100 @@ export default function PedidosPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Falha ao avançar status.");
+    }
+  }
+
+  function startEditOrder(order: Order) {
+    setEditingOrderId(order.id);
+    setEditCustomerId(order.customer_id);
+    setEditNotes(order.notes ?? "");
+  }
+
+  function cancelEditOrder() {
+    setEditingOrderId(null);
+  }
+
+  async function handleSaveOrderEdit(order: Order) {
+    if (!accessToken) return;
+    setIsSavingOrderEdit(true);
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/orders/${order.id}`, {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify({ customer_id: editCustomerId, notes: editNotes }),
+      });
+      setEditingOrderId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar pedido.");
+    } finally {
+      setIsSavingOrderEdit(false);
+    }
+  }
+
+  async function handleDeleteOrder(order: Order) {
+    if (!accessToken) return;
+    if (!window.confirm(`Excluir o pedido de "${customerName(order.customer_id)}"?`)) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/orders/${order.id}`, { method: "DELETE", accessToken });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao excluir pedido.");
+    }
+  }
+
+  function startEditItem(item: OrderItem) {
+    setEditingItemId(item.id);
+    setEditItemQuantity(String(item.quantity));
+    setEditItemUnitCost(item.unit_cost != null ? String(item.unit_cost) : "");
+    setEditItemUnitPrice(item.unit_price != null ? String(item.unit_price) : "");
+  }
+
+  function cancelEditItem() {
+    setEditingItemId(null);
+  }
+
+  async function handleSaveItemEdit(orderId: string, item: OrderItem) {
+    if (!accessToken) return;
+    setIsSavingItemEdit(true);
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/orders/${orderId}/items/${item.id}`, {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify({
+          quantity: Number(editItemQuantity || 1),
+          unit_cost: editItemUnitCost ? Number(editItemUnitCost) : null,
+          unit_price: editItemUnitPrice ? Number(editItemUnitPrice) : null,
+        }),
+      });
+      setEditingItemId(null);
+      const data = await apiFetch<OrderItem[]>(`${orgPath}/orders/${orderId}/items`, { accessToken });
+      setItemsByOrder((prev) => ({ ...prev, [orderId]: data }));
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao salvar item.");
+    } finally {
+      setIsSavingItemEdit(false);
+    }
+  }
+
+  async function handleDeleteItem(orderId: string, item: OrderItem) {
+    if (!accessToken) return;
+    if (!window.confirm("Remover este item do pedido?")) return;
+    setError(null);
+    try {
+      await apiFetch(`${orgPath}/orders/${orderId}/items/${item.id}`, {
+        method: "DELETE",
+        accessToken,
+      });
+      const data = await apiFetch<OrderItem[]>(`${orgPath}/orders/${orderId}/items`, { accessToken });
+      setItemsByOrder((prev) => ({ ...prev, [orderId]: data }));
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao remover item.");
     }
   }
 
@@ -306,8 +411,42 @@ export default function PedidosPage() {
                               Avançar → {STATUS_LABELS[next]}
                             </button>
                           )}
+                          <button onClick={() => startEditOrder(order)} className="text-sm text-blue-400 hover:underline">
+                            Editar
+                          </button>
+                          <button onClick={() => handleDeleteOrder(order)} className="text-sm text-red-400 hover:underline">
+                            Excluir
+                          </button>
                         </td>
                       </tr>
+                      {editingOrderId === order.id && (
+                        <tr>
+                          <td colSpan={5} className="bg-neutral-950/80 px-4 py-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                              <div className="w-full sm:flex-1">
+                                <label className="mb-1 block text-xs text-neutral-500">Cliente</label>
+                                <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm">
+                                  {customers.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="w-full sm:flex-1">
+                                <label className="mb-1 block text-xs text-neutral-500">Observações</label>
+                                <input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => handleSaveOrderEdit(order)} disabled={isSavingOrderEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                                  {isSavingOrderEdit ? "Salvando…" : "Salvar"}
+                                </button>
+                                <button onClick={cancelEditOrder} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {expandedOrderId === order.id && (
                         <tr>
                           <td colSpan={5} className="space-y-4 bg-neutral-950/80 px-4 py-4">
@@ -316,11 +455,47 @@ export default function PedidosPage() {
                             ) : itemsByOrder[order.id].length === 0 ? (
                               <p className="text-sm text-neutral-500">Nenhum item neste pedido ainda.</p>
                             ) : (
-                              <ul className="space-y-1 text-sm text-neutral-300">
+                              <ul className="space-y-2 text-sm text-neutral-300">
                                 {itemsByOrder[order.id].map((item) => (
-                                  <li key={item.id} className="flex justify-between">
-                                    <span>{productName(item.product_id)} · Qtd. {item.quantity} — {item.status}</span>
-                                    <span>{formatCurrency((item.unit_price ?? 0) * item.quantity)}</span>
+                                  <li key={item.id} className="space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="min-w-0 flex-1 truncate">
+                                        {productName(item.product_id)} · Qtd. {item.quantity} — {item.status}
+                                      </span>
+                                      <span className="shrink-0">{formatCurrency((item.unit_price ?? 0) * item.quantity)}</span>
+                                      <span className="shrink-0 space-x-2">
+                                        <button onClick={() => startEditItem(item)} className="text-xs text-blue-400 hover:underline">
+                                          Editar
+                                        </button>
+                                        <button onClick={() => handleDeleteItem(order.id, item)} className="text-xs text-red-400 hover:underline">
+                                          Excluir
+                                        </button>
+                                      </span>
+                                    </div>
+                                    {editingItemId === item.id && (
+                                      <div className="flex flex-col gap-2 rounded border border-neutral-800 bg-neutral-950/60 p-3 sm:flex-row sm:items-end">
+                                        <div className="w-full sm:w-24">
+                                          <label className="mb-1 block text-xs text-neutral-500">Qtd.</label>
+                                          <input type="number" min={1} value={editItemQuantity} onChange={(e) => setEditItemQuantity(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                        </div>
+                                        <div className="w-full sm:w-28">
+                                          <label className="mb-1 block text-xs text-neutral-500">Custo unit.</label>
+                                          <input type="number" step="0.01" value={editItemUnitCost} onChange={(e) => setEditItemUnitCost(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                        </div>
+                                        <div className="w-full sm:w-28">
+                                          <label className="mb-1 block text-xs text-neutral-500">Preço unit.</label>
+                                          <input type="number" step="0.01" value={editItemUnitPrice} onChange={(e) => setEditItemUnitPrice(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button onClick={() => handleSaveItemEdit(order.id, item)} disabled={isSavingItemEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                                            {isSavingItemEdit ? "Salvando…" : "Salvar"}
+                                          </button>
+                                          <button onClick={cancelEditItem} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </li>
                                 ))}
                               </ul>

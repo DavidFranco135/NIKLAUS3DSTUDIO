@@ -15,6 +15,8 @@ from src.interfaces.http.v1.schemas import (
     OrderItemResponse,
     OrderResponse,
     TransitionOrderStatusRequest,
+    UpdateOrderItemRequest,
+    UpdateOrderRequest,
 )
 
 router = APIRouter(prefix="/organizations/{organization_id}/orders", tags=["orders"])
@@ -69,6 +71,42 @@ def get_order(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return OrderResponse.model_validate(order)
+
+
+@router.patch(
+    "/{order_id}",
+    response_model=OrderResponse,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def update_order(
+    organization_id: UUID,
+    order_id: UUID,
+    payload: UpdateOrderRequest,
+    db: Session = Depends(get_db),
+) -> OrderResponse:
+    try:
+        order = order_use_cases.update_order(
+            db,
+            organization_id=organization_id,
+            order_id=order_id,
+            customer_id=payload.customer_id,
+            notes=payload.notes,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return OrderResponse.model_validate(order)
+
+
+@router.delete(
+    "/{order_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def delete_order(organization_id: UUID, order_id: UUID, db: Session = Depends(get_db)) -> None:
+    try:
+        order_use_cases.delete_order(db, organization_id=organization_id, order_id=order_id)
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
 
 
 @router.post(
@@ -142,3 +180,46 @@ def list_order_items(
     except DomainError as exc:
         raise as_http_exception(exc) from exc
     return [OrderItemResponse.model_validate(i) for i in items]
+
+
+@router.patch(
+    "/{order_id}/items/{item_id}",
+    response_model=OrderItemResponse,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def update_order_item(
+    organization_id: UUID,
+    order_id: UUID,
+    item_id: UUID,
+    payload: UpdateOrderItemRequest,
+    db: Session = Depends(get_db),
+) -> OrderItemResponse:
+    try:
+        item = order_use_cases.update_order_item(
+            db,
+            organization_id=organization_id,
+            order_id=order_id,
+            item_id=item_id,
+            quantity=payload.quantity,
+            unit_cost=payload.unit_cost,
+            unit_price=payload.unit_price,
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return OrderItemResponse.model_validate(item)
+
+
+@router.delete(
+    "/{order_id}/items/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_org_role(Role.OPERATOR))],
+)
+def delete_order_item(
+    organization_id: UUID, order_id: UUID, item_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    try:
+        order_use_cases.delete_order_item(
+            db, organization_id=organization_id, order_id=order_id, item_id=item_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc

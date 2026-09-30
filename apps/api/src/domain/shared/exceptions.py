@@ -140,6 +140,10 @@ class OrderNotFoundError(DomainError):
     pass
 
 
+class OrderItemNotFoundError(DomainError):
+    pass
+
+
 class InvalidOrderTransitionError(DomainError):
     pass
 

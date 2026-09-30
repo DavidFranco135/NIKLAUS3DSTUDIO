@@ -951,14 +951,18 @@ class OrderRepository:
 
     def get(self, organization_id: UUID, order_id: UUID) -> Order | None:
         return self.session.scalar(
-            select(Order).where(Order.id == order_id, Order.organization_id == organization_id)
+            select(Order).where(
+                Order.id == order_id,
+                Order.organization_id == organization_id,
+                Order.deleted_at.is_(None),
+            )
         )
 
     def list_for_org(self, organization_id: UUID) -> list[Order]:
         return list(
             self.session.scalars(
                 select(Order)
-                .where(Order.organization_id == organization_id)
+                .where(Order.organization_id == organization_id, Order.deleted_at.is_(None))
                 .order_by(Order.created_at.desc())
             )
         )
@@ -968,7 +972,9 @@ class OrderRepository:
             self.session.scalars(
                 select(Order)
                 .where(
-                    Order.organization_id == organization_id, Order.customer_id == customer_id
+                    Order.organization_id == organization_id,
+                    Order.customer_id == customer_id,
+                    Order.deleted_at.is_(None),
                 )
                 .order_by(Order.created_at.desc())
             )
@@ -1002,6 +1008,10 @@ class OrderRepository:
 
     def update_total_amount(self, order: Order, *, total_amount: float) -> None:
         order.total_amount = total_amount
+        self.session.flush()
+
+    def soft_delete(self, order: Order) -> None:
+        order.deleted_at = datetime.now(UTC)
         self.session.flush()
 
 
@@ -1050,6 +1060,26 @@ class OrderItemRepository:
         self.session.add(item)
         self.session.flush()
         return item
+
+    def update(
+        self,
+        item: OrderItem,
+        *,
+        quantity: int | None,
+        unit_cost: float | None,
+        unit_price: float | None,
+    ) -> None:
+        if quantity is not None:
+            item.quantity = quantity
+        if unit_cost is not None:
+            item.unit_cost = unit_cost
+        if unit_price is not None:
+            item.unit_price = unit_price
+        self.session.flush()
+
+    def delete(self, item: OrderItem) -> None:
+        self.session.delete(item)
+        self.session.flush()
 
 
 class FinancialTransactionRepository:
