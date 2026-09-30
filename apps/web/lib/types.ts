@@ -273,7 +273,16 @@ export type Quote = {
   customer_id: string | null;
   piece_name: string | null;
   printer_name: string | null;
+  machine_id: string | null;
+  material_id: string | null;
   weight_g: number | null;
+  cost_per_kg: number | null;
+  extra_items: { name: string; cost: number }[] | null;
+  print_time_hours: number | null;
+  depreciation_mode: "hora" | "peca" | null;
+  depreciation_value: number | null;
+  labor_hours: number | null;
+  profit_margin_percentage: number | null;
   quantity: number;
   cost_breakdown_snapshot: Record<string, unknown>;
   production_cost: number;

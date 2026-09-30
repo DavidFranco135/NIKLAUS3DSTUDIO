@@ -140,7 +140,20 @@ def update_quote(
             quote_id=quote_id,
             piece_name=payload.piece_name,
             printer_name=payload.printer_name,
+            machine_id=payload.machine_id,
+            material_id=payload.material_id,
             weight_g=payload.weight_g,
+            cost_per_kg=payload.cost_per_kg,
+            extra_items=(
+                [item.model_dump() for item in payload.extra_items]
+                if payload.extra_items is not None
+                else None
+            ),
+            print_time_hours=payload.print_time_hours,
+            depreciation_mode=payload.depreciation_mode,
+            depreciation_value=payload.depreciation_value,
+            labor_hours=payload.labor_hours,
+            profit_margin_percentage=payload.profit_margin_percentage,
             quantity=payload.quantity,
             final_price=payload.final_price,
         )
@@ -195,6 +208,15 @@ def create_quote(
             weight_g=payload.weight_g,
             quantity=payload.quantity,
             profit_margin_percentage=payload.profit_margin_percentage,
+            material_id=payload.material_id,
+            cost_per_kg=payload.cost_per_kg,
+            extra_items=(
+                [item.model_dump() for item in payload.extra_items]
+                if payload.extra_items is not None
+                else None
+            ),
+            depreciation_mode=payload.depreciation_mode,
+            depreciation_value=payload.depreciation_value,
         )
     except DomainError as exc:
         raise as_http_exception(exc) from exc

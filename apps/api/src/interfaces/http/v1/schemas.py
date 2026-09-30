@@ -231,6 +231,11 @@ class CostProfileResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class QuoteExtraItem(BaseModel):
+    name: str = Field(max_length=200)
+    cost: float = Field(ge=0)
+
+
 class CreateQuoteRequest(BaseModel):
     cost_profile_id: UUID
     project_id: UUID | None = None
@@ -247,6 +252,11 @@ class CreateQuoteRequest(BaseModel):
     weight_g: float | None = Field(default=None, ge=0)
     quantity: int = Field(default=1, ge=1)
     profit_margin_percentage: float | None = Field(default=None, ge=0)
+    material_id: UUID | None = None
+    cost_per_kg: float | None = Field(default=None, ge=0)
+    extra_items: list[QuoteExtraItem] | None = None
+    depreciation_mode: str | None = Field(default=None, pattern="^(hora|peca)$")
+    depreciation_value: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _project_fields_go_together(self) -> "CreateQuoteRequest":
@@ -254,19 +264,21 @@ class CreateQuoteRequest(BaseModel):
             raise ValueError("Informe project_id e project_version_id juntos, ou nenhum dos dois.")
         return self
 
-    @model_validator(mode="after")
-    def _exactly_one_machine_cost_source(self) -> "CreateQuoteRequest":
-        if (self.machine_id is None) == (self.machine_cost_per_hour is None):
-            raise ValueError(
-                "Informe machine_id ou machine_cost_per_hour, nunca os dois nem nenhum."
-            )
-        return self
 
 
 class UpdateQuoteRequest(BaseModel):
     piece_name: str | None = Field(default=None, max_length=200)
     printer_name: str | None = Field(default=None, max_length=200)
+    machine_id: UUID | None = None
+    material_id: UUID | None = None
     weight_g: float | None = Field(default=None, ge=0)
+    cost_per_kg: float | None = Field(default=None, ge=0)
+    extra_items: list[QuoteExtraItem] | None = None
+    print_time_hours: float | None = Field(default=None, ge=0)
+    depreciation_mode: str | None = Field(default=None, pattern="^(hora|peca)$")
+    depreciation_value: float | None = Field(default=None, ge=0)
+    labor_hours: float | None = Field(default=None, ge=0)
+    profit_margin_percentage: float | None = Field(default=None, ge=0)
     quantity: int | None = Field(default=None, ge=1)
     final_price: float | None = Field(default=None, ge=0)
 
@@ -278,7 +290,16 @@ class QuoteResponse(BaseModel):
     customer_id: UUID | None
     piece_name: str | None
     printer_name: str | None
+    machine_id: UUID | None
+    material_id: UUID | None
     weight_g: float | None
+    cost_per_kg: float | None
+    extra_items: list[QuoteExtraItem] | None
+    print_time_hours: float | None
+    depreciation_mode: str | None
+    depreciation_value: float | None
+    labor_hours: float | None
+    profit_margin_percentage: float | None
     quantity: int
     cost_breakdown_snapshot: dict
     production_cost: float

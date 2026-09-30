@@ -420,7 +420,30 @@ class Quote(Base):
     )
     piece_name: Mapped[str | None] = mapped_column(String, nullable=True)
     printer_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    machine_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("machines.id"), nullable=True
+    )
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("materials.id"), nullable=True
+    )
     weight_g: Mapped[float | None] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=True)
+    cost_per_kg: Mapped[float | None] = mapped_column(
+        Numeric(12, 2, asdecimal=False), nullable=True
+    )
+    extra_items: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    print_time_hours: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    depreciation_mode: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    depreciation_value: Mapped[float | None] = mapped_column(
+        Numeric(12, 2, asdecimal=False), nullable=True
+    )
+    labor_hours: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    profit_margin_percentage: Mapped[float | None] = mapped_column(
+        Numeric(6, 3, asdecimal=False), nullable=True
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     cost_breakdown_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     production_cost: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))

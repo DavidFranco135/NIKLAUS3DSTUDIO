@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -102,12 +102,7 @@ export default function PrecificacaoPage() {
 
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
-  const [editPieceName, setEditPieceName] = useState("");
-  const [editPrinterName, setEditPrinterName] = useState("");
-  const [editWeightG, setEditWeightG] = useState("");
-  const [editQuantity, setEditQuantity] = useState("1");
   const [editFinalPrice, setEditFinalPrice] = useState("");
-  const [isSavingPieceEdit, setIsSavingPieceEdit] = useState(false);
   const [addedToProductsIds, setAddedToProductsIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
@@ -331,55 +326,89 @@ export default function PrecificacaoPage() {
 
   const canSave = Boolean(defaultCostProfile && pieceName.trim() && printTimeHoursNum >= 0);
 
+  function resetPecaForm() {
+    setEditingQuoteId(null);
+    setPrinterId("");
+    setPieceName("");
+    setPrintTimeHours("");
+    setWeightG("");
+    setMaterialId("");
+    setCostPerKg("");
+    setQuantity("1");
+    setDepreciationMode("hora");
+    setDepreciationValue("");
+    setMarginPercent("40");
+    setLaborHours("0");
+    setExtraItems([]);
+    setEditFinalPrice("");
+  }
+
   async function handleSavePiece() {
     if (!accessToken || !defaultCostProfile || !canSave) return;
     setIsSaving(true);
     setError(null);
     setMessage(null);
+    const body = {
+      cost_profile_id: defaultCostProfile.id,
+      material_cost: materialCost,
+      print_time_hours: printTimeHoursNum,
+      machine_cost_per_hour: machineCostPerHourEffective,
+      energy_kwh: energyKwh,
+      labor_hours: laborHoursNum,
+      piece_name: pieceName,
+      printer_name: selectedPrinter
+        ? `${selectedPrinter.name}${selectedPrinter.model ? " " + selectedPrinter.model : ""}`
+        : null,
+      machine_id: printerId || null,
+      weight_g: weightGNum || null,
+      quantity: quantityNum,
+      profit_margin_percentage: marginPercentNum,
+      material_id: materialId || null,
+      cost_per_kg: costPerKgNum || null,
+      extra_items: extraItems.map((item) => ({ name: item.name, cost: Number(item.cost) || 0 })),
+      depreciation_mode: depreciationMode,
+      depreciation_value: depreciationValueNum || null,
+    };
     try {
-      await apiFetch(`${orgPath}/quotes`, {
-        method: "POST",
-        accessToken,
-        body: JSON.stringify({
-          cost_profile_id: defaultCostProfile.id,
-          material_cost: materialCost,
-          print_time_hours: printTimeHoursNum,
-          machine_cost_per_hour: machineCostPerHourEffective,
-          energy_kwh: energyKwh,
-          labor_hours: laborHoursNum,
-          piece_name: pieceName,
-          printer_name: selectedPrinter
-            ? `${selectedPrinter.name}${selectedPrinter.model ? " " + selectedPrinter.model : ""}`
-            : null,
-          weight_g: weightGNum || null,
-          quantity: quantityNum,
-          profit_margin_percentage: marginPercentNum,
-        }),
-      });
-
-      let productMessage = "Peça salva na lista.";
-      try {
-        await apiFetch(`${orgPath}/products`, {
-          method: "POST",
+      if (editingQuoteId) {
+        await apiFetch(`${orgPath}/quotes/${editingQuoteId}`, {
+          method: "PATCH",
           accessToken,
           body: JSON.stringify({
-            name: pieceName,
-            description: null,
-            print_time_hours: printTimeHoursNum || null,
-            machine_id: printerId || null,
-            materials: materialId ? [{ material_id: materialId, quantity_g: weightGNum }] : [],
+            ...body,
+            final_price: editFinalPrice ? Number(editFinalPrice) : null,
           }),
         });
-        productMessage = "Peça salva na lista e adicionada aos Produtos.";
-      } catch {
-        productMessage = "Peça salva na lista, mas falhou ao adicionar aos Produtos — adicione manualmente na aba Produtos se precisar.";
-      }
+        setMessage("Peça atualizada.");
+        resetPecaForm();
+        await load();
+        setActiveTab("salvas");
+      } else {
+        await apiFetch(`${orgPath}/quotes`, { method: "POST", accessToken, body: JSON.stringify(body) });
 
-      setMessage(productMessage);
-      setPieceName("");
-      setExtraItems([]);
-      await load();
-      setActiveTab("salvas");
+        let productMessage = "Peça salva na lista.";
+        try {
+          await apiFetch(`${orgPath}/products`, {
+            method: "POST",
+            accessToken,
+            body: JSON.stringify({
+              name: pieceName,
+              description: null,
+              print_time_hours: printTimeHoursNum || null,
+              machine_id: printerId || null,
+              materials: materialId ? [{ material_id: materialId, quantity_g: weightGNum }] : [],
+            }),
+          });
+          productMessage = "Peça salva na lista e adicionada aos Produtos.";
+        } catch {
+          productMessage = "Peça salva na lista, mas falhou ao adicionar aos Produtos — adicione manualmente na aba Produtos se precisar.";
+        }
+
+        setMessage(productMessage);
+        resetPecaForm();
+        await load();
+        setActiveTab("salvas");
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Falha ao salvar a peça.");
     } finally {
@@ -393,40 +422,26 @@ export default function PrecificacaoPage() {
 
   function startEditPiece(q: Quote) {
     setEditingQuoteId(q.id);
-    setEditPieceName(q.piece_name ?? "");
-    setEditPrinterName(q.printer_name ?? "");
-    setEditWeightG(q.weight_g != null ? String(q.weight_g) : "");
-    setEditQuantity(String(q.quantity));
+    setPrinterId(q.machine_id ?? "");
+    setPieceName(q.piece_name ?? "");
+    setPrintTimeHours(q.print_time_hours != null ? String(q.print_time_hours) : "");
+    setWeightG(q.weight_g != null ? String(q.weight_g) : "");
+    setMaterialId(q.material_id ?? "");
+    setCostPerKg(q.cost_per_kg != null ? String(q.cost_per_kg) : "");
+    setQuantity(String(q.quantity));
+    setDepreciationMode(q.depreciation_mode ?? "hora");
+    setDepreciationValue(q.depreciation_value != null ? String(q.depreciation_value) : "");
+    setMarginPercent(q.profit_margin_percentage != null ? String(q.profit_margin_percentage) : "40");
+    setLaborHours(q.labor_hours != null ? String(q.labor_hours) : "0");
+    setExtraItems((q.extra_items ?? []).map((item) => ({ name: item.name, cost: String(item.cost) })));
     setEditFinalPrice(q.final_price != null ? String(q.final_price) : "");
+    setMessage(null);
+    setError(null);
+    setActiveTab("peca");
   }
 
   function cancelEditPiece() {
-    setEditingQuoteId(null);
-  }
-
-  async function handleSavePieceEdit(q: Quote) {
-    if (!accessToken) return;
-    setIsSavingPieceEdit(true);
-    setError(null);
-    try {
-      await apiFetch(`${orgPath}/quotes/${q.id}`, {
-        method: "PATCH",
-        accessToken,
-        body: JSON.stringify({
-          piece_name: editPieceName,
-          printer_name: editPrinterName || null,
-          weight_g: editWeightG ? Number(editWeightG) : null,
-          quantity: Number(editQuantity || 1),
-          final_price: editFinalPrice ? Number(editFinalPrice) : null,
-        }),
-      });
-      setEditingQuoteId(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Falha ao salvar peça.");
-    } finally {
-      setIsSavingPieceEdit(false);
-    }
+    resetPecaForm();
   }
 
   async function handleAddPieceToProducts(q: Quote) {
@@ -633,6 +648,15 @@ export default function PrecificacaoPage() {
 
               {activeTab === "peca" && (
                 <div className="space-y-4">
+                  {editingQuoteId && (
+                    <div className="flex items-center justify-between rounded-lg border border-blue-800 bg-blue-950/40 px-4 py-3 text-sm text-blue-300">
+                      <span>Editando peça salva — ajuste o que quiser e salve.</span>
+                      <button type="button" onClick={cancelEditPiece} className="text-xs underline">
+                        Cancelar edição
+                      </button>
+                    </div>
+                  )}
+
                   {!defaultCostProfile && (
                     <p className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-4 py-3 text-sm text-yellow-300">
                       Cadastre um{" "}
@@ -803,13 +827,40 @@ export default function PrecificacaoPage() {
                         <CostBreakdownList breakdown={breakdown} />
                       </div>
 
-                      <button
-                        onClick={handleSavePiece}
-                        disabled={!canSave || isSaving}
-                        className="mt-4 w-full rounded bg-purple-600 px-4 py-2 font-medium hover:bg-purple-500 disabled:opacity-50"
-                      >
-                        {isSaving ? "Salvando…" : "Salvar peça calculada"}
-                      </button>
+                      {editingQuoteId && (
+                        <div className="mt-4 border-t border-neutral-800 pt-4">
+                          <label className="mb-1 block text-xs text-neutral-500">
+                            Preço final manual (R$) — opcional, sobrescreve o preço sugerido acima
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Deixe em branco pra usar o preço sugerido"
+                            value={editFinalPrice}
+                            onChange={(e) => setEditFinalPrice(e.target.value)}
+                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                          />
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={handleSavePiece}
+                          disabled={!canSave || isSaving}
+                          className="flex-1 rounded bg-purple-600 px-4 py-2 font-medium hover:bg-purple-500 disabled:opacity-50"
+                        >
+                          {isSaving ? "Salvando…" : editingQuoteId ? "Salvar alterações" : "Salvar peça calculada"}
+                        </button>
+                        {editingQuoteId && (
+                          <button
+                            type="button"
+                            onClick={cancelEditPiece}
+                            className="rounded border border-neutral-700 px-4 py-2 font-medium text-neutral-400 hover:border-neutral-500"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
                       {!pieceName.trim() && (
                         <p className="mt-1 text-xs text-yellow-300">Dê um nome à peça para poder salvar.</p>
                       )}
@@ -870,8 +921,7 @@ export default function PrecificacaoPage() {
                           </tr>
                         ) : (
                           quotes.map((q) => (
-                            <Fragment key={q.id}>
-                              <tr className="hover:bg-neutral-900/50">
+                              <tr key={q.id} className="hover:bg-neutral-900/50">
                                 <td className="px-3 py-3">
                                   <input
                                     type="checkbox"
@@ -908,29 +958,6 @@ export default function PrecificacaoPage() {
                                   </button>
                                 </td>
                               </tr>
-                              {editingQuoteId === q.id && (
-                                <tr>
-                                  <td colSpan={9} className="bg-neutral-950/80 px-4 py-4">
-                                    <div className="flex flex-wrap items-end gap-2">
-                                      <input placeholder="Nome da peça" value={editPieceName} onChange={(e) => setEditPieceName(e.target.value)} className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                      <input placeholder="Impressora" value={editPrinterName} onChange={(e) => setEditPrinterName(e.target.value)} className="w-40 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                      <input type="number" step="0.1" placeholder="Peso (g)" value={editWeightG} onChange={(e) => setEditWeightG(e.target.value)} className="w-24 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                      <input type="number" min={1} placeholder="Qtd." value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="w-20 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                      <input type="number" step="0.01" placeholder="Preço final (R$)" value={editFinalPrice} onChange={(e) => setEditFinalPrice(e.target.value)} className="w-32 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                      <button onClick={() => handleSavePieceEdit(q)} disabled={isSavingPieceEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
-                                        {isSavingPieceEdit ? "Salvando…" : "Salvar"}
-                                      </button>
-                                      <button onClick={cancelEditPiece} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
-                                        Cancelar
-                                      </button>
-                                    </div>
-                                    <p className="mt-2 text-xs text-neutral-500">
-                                      &quot;Preço final&quot; sobrescreve o preço sugerido calculado (ex: pra fechar um desconto combinado). Deixe em branco pra manter o preço calculado.
-                                    </p>
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
                           ))
                         )}
                       </tbody>

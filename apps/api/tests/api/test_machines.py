@@ -128,18 +128,25 @@ def _create_cost_profile(client: TestClient, org_id: str, headers: dict) -> dict
     return response.json()
 
 
-def test_quote_can_use_machine_cost_per_hour_from_a_machine_profile(client: TestClient):
+def test_quote_stores_machine_id_alongside_manual_machine_cost(client: TestClient):
+    """machine_id is metadata for later editing (so a saved piece can
+
+    repopulate its printer dropdown) — it never drives the cost. The cost
+    always comes from machine_cost_per_hour, which the client computes from
+    the (editable) depreciation value, so both fields are sent together.
+    """
     owner = register_user(client, organization_name="Acme Prints", email="owner@acme.io")
     headers = auth_headers(owner["access_token"])
     org_id = _org_id(client, headers)
     machine = _create_machine(client, org_id, headers, cost_per_hour=4.0)
     profile = _create_cost_profile(client, org_id, headers)
 
-    response = client.post(
+    with_machine = client.post(
         f"/api/v1/organizations/{org_id}/quotes",
         json={
             "cost_profile_id": profile["id"],
             "machine_id": machine["id"],
+            "machine_cost_per_hour": 4.0,
             "material_cost": 10.0,
             "print_time_hours": 2.0,
             "energy_kwh": 0.1,
@@ -147,7 +154,8 @@ def test_quote_can_use_machine_cost_per_hour_from_a_machine_profile(client: Test
         },
         headers=headers,
     )
-    assert response.status_code == 201, response.text
+    assert with_machine.status_code == 201, with_machine.text
+    assert with_machine.json()["machine_id"] == machine["id"]
 
     manual = client.post(
         f"/api/v1/organizations/{org_id}/quotes",
@@ -162,33 +170,12 @@ def test_quote_can_use_machine_cost_per_hour_from_a_machine_profile(client: Test
         headers=headers,
     )
     assert manual.status_code == 201, manual.text
-    assert response.json()["suggested_price"] == manual.json()["suggested_price"]
+    assert manual.json()["machine_id"] is None
+    assert with_machine.json()["suggested_price"] == manual.json()["suggested_price"]
 
 
-def test_quote_rejects_both_machine_id_and_manual_cost(client: TestClient):
-    owner = register_user(client, organization_name="Acme Prints", email="owner@acme.io")
-    headers = auth_headers(owner["access_token"])
-    org_id = _org_id(client, headers)
-    machine = _create_machine(client, org_id, headers)
-    profile = _create_cost_profile(client, org_id, headers)
-
-    response = client.post(
-        f"/api/v1/organizations/{org_id}/quotes",
-        json={
-            "cost_profile_id": profile["id"],
-            "machine_id": machine["id"],
-            "machine_cost_per_hour": 4.0,
-            "material_cost": 10.0,
-            "print_time_hours": 2.0,
-            "energy_kwh": 0.1,
-            "labor_hours": 0.2,
-        },
-        headers=headers,
-    )
-    assert response.status_code == 422
-
-
-def test_quote_rejects_neither_machine_id_nor_manual_cost(client: TestClient):
+def test_quote_allows_neither_machine_id_nor_manual_cost(client: TestClient):
+    """Neither field is required — machine cost simply defaults to zero."""
     owner = register_user(client, organization_name="Acme Prints", email="owner@acme.io")
     headers = auth_headers(owner["access_token"])
     org_id = _org_id(client, headers)
@@ -205,7 +192,8 @@ def test_quote_rejects_neither_machine_id_nor_manual_cost(client: TestClient):
         },
         headers=headers,
     )
-    assert response.status_code == 422
+    assert response.status_code == 201, response.text
+    assert response.json()["cost_breakdown_snapshot"]["machine_cost"] == 0.0
 
 
 def test_quote_rejects_unknown_machine(client: TestClient):

@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.application.customers.use_cases import get_customer
+from src.application.inventory.use_cases import get_material
 from src.application.machines.use_cases import get_machine
 from src.application.projects.use_cases import get_project
 from src.domain.calculator.engine import calculate_quote
@@ -137,6 +138,11 @@ def create_quote(
     weight_g: float | None = None,
     quantity: int = 1,
     profit_margin_percentage: float | None = None,
+    material_id: UUID | None = None,
+    cost_per_kg: float | None = None,
+    extra_items: list[dict] | None = None,
+    depreciation_mode: str | None = None,
+    depreciation_value: float | None = None,
 ) -> Quote:
     profile = get_cost_profile(db, organization_id=organization_id, cost_profile_id=cost_profile_id)
 
@@ -151,11 +157,22 @@ def create_quote(
         if version is None:
             raise ProjectVersionNotFoundError(str(project_version_id))
 
+    # machine_id is stored for display/edit-repopulation only — the actual
+    # machine cost always comes from machine_cost_per_hour (the depreciation
+    # value the Peça tab computed, which may have been hand-edited away from
+    # the printer's own default), mirroring update_quote's behavior.
     if machine_id is not None:
-        machine = get_machine(db, organization_id=organization_id, machine_id=machine_id)
-        effective_machine_cost_per_hour = machine.cost_per_hour or 0.0
-    else:
-        effective_machine_cost_per_hour = machine_cost_per_hour or 0.0
+        get_machine(db, organization_id=organization_id, machine_id=machine_id)
+    effective_machine_cost_per_hour = machine_cost_per_hour or 0.0
+
+    if material_id is not None:
+        get_material(db, organization_id=organization_id, material_id=material_id)
+
+    resolved_margin = (
+        profit_margin_percentage
+        if profit_margin_percentage is not None
+        else profile.profit_margin_percentage
+    )
 
     breakdown = calculate_quote(
         QuoteInputs(
@@ -171,11 +188,7 @@ def create_quote(
             packaging_cost_flat=profile.packaging_cost_flat,
             waste_percentage=profile.waste_percentage,
             fees_percentage=profile.fees_percentage,
-            profit_margin_percentage=(
-                profit_margin_percentage
-                if profit_margin_percentage is not None
-                else profile.profit_margin_percentage
-            ),
+            profit_margin_percentage=resolved_margin,
             tax_percentage=profile.tax_percentage or 0.0,
         ),
     )
@@ -188,7 +201,16 @@ def create_quote(
         created_by=created_by,
         piece_name=piece_name,
         printer_name=printer_name,
+        machine_id=machine_id,
+        material_id=material_id,
         weight_g=weight_g,
+        cost_per_kg=cost_per_kg,
+        extra_items=[dict(item) for item in extra_items] if extra_items is not None else None,
+        print_time_hours=print_time_hours,
+        depreciation_mode=depreciation_mode,
+        depreciation_value=depreciation_value,
+        labor_hours=labor_hours,
+        profit_margin_percentage=resolved_margin,
         quantity=quantity,
         cost_breakdown_snapshot=asdict(breakdown),
         production_cost=breakdown.production_cost,
@@ -216,25 +238,119 @@ def update_quote(
     quote_id: UUID,
     piece_name: str | None,
     printer_name: str | None,
+    machine_id: UUID | None,
+    material_id: UUID | None,
     weight_g: float | None,
+    cost_per_kg: float | None,
+    extra_items: list[dict] | None,
+    print_time_hours: float | None,
+    depreciation_mode: str | None,
+    depreciation_value: float | None,
+    labor_hours: float | None,
+    profit_margin_percentage: float | None,
     quantity: int | None,
     final_price: float | None,
 ) -> Quote:
-    """Edits the piece's own record fields (name, printer, weight, quantity,
+    """Edits a saved piece using the exact same inputs as creating one, and
 
-    an optional manual final price) — it does not re-run the pricing engine.
-    To change material/time/margin inputs, generate a new piece instead;
-    cost_breakdown_snapshot stays the original calculation for that reason.
+    re-runs the pricing engine so the breakdown reflects the edited values —
+    this mirrors the Peça tab's form so editing is just as capable as
+    creating. Any field left out (None) keeps its previously stored value.
+    `final_price` is a separate manual override, untouched by recomputation.
     """
     quote = get_quote(db, organization_id=organization_id, quote_id=quote_id)
+    profile = get_cost_profile(
+        db, organization_id=organization_id, cost_profile_id=quote.cost_profile_id
+    )
+
+    resolved_machine_id = machine_id if machine_id is not None else quote.machine_id
+    resolved_material_id = material_id if material_id is not None else quote.material_id
+    resolved_weight_g = weight_g if weight_g is not None else (quote.weight_g or 0.0)
+    resolved_cost_per_kg = cost_per_kg if cost_per_kg is not None else (quote.cost_per_kg or 0.0)
+    resolved_extra_items = extra_items if extra_items is not None else (quote.extra_items or [])
+    resolved_print_time_hours = (
+        print_time_hours if print_time_hours is not None else (quote.print_time_hours or 0.0)
+    )
+    resolved_depreciation_mode = depreciation_mode or quote.depreciation_mode or "hora"
+    resolved_depreciation_value = (
+        depreciation_value if depreciation_value is not None else (quote.depreciation_value or 0.0)
+    )
+    resolved_labor_hours = labor_hours if labor_hours is not None else (quote.labor_hours or 0.0)
+    resolved_margin = (
+        profit_margin_percentage
+        if profit_margin_percentage is not None
+        else (quote.profit_margin_percentage if quote.profit_margin_percentage is not None
+              else profile.profit_margin_percentage)
+    )
+    resolved_quantity = quantity if quantity is not None else quote.quantity
+
+    if resolved_material_id is not None:
+        get_material(db, organization_id=organization_id, material_id=resolved_material_id)
+
+    # Mirrors the Peça tab's client-side logic exactly: the depreciation
+    # value the user typed (pre-filled from the printer, but editable)
+    # always drives the machine cost — a selected printer only supplies its
+    # wattage, for the automatic energy-cost calculation below.
+    power_watts = None
+    if resolved_machine_id is not None:
+        machine = get_machine(db, organization_id=organization_id, machine_id=resolved_machine_id)
+        power_watts = machine.power_watts
+
+    if resolved_depreciation_mode == "hora":
+        effective_machine_cost_per_hour = resolved_depreciation_value
+    else:
+        effective_machine_cost_per_hour = (
+            resolved_depreciation_value / resolved_print_time_hours
+            if resolved_print_time_hours
+            else resolved_depreciation_value
+        )
+
+    energy_kwh = (
+        (power_watts / 1000) * resolved_print_time_hours
+        if power_watts is not None
+        else 0.0
+    )
+
+    extra_items_cost = sum(item.get("cost", 0) or 0 for item in resolved_extra_items)
+    material_cost = (resolved_weight_g / 1000) * resolved_cost_per_kg + extra_items_cost
+
+    breakdown = calculate_quote(
+        QuoteInputs(
+            material_cost=material_cost,
+            print_time_hours=resolved_print_time_hours,
+            machine_cost_per_hour=effective_machine_cost_per_hour,
+            energy_kwh=energy_kwh,
+            labor_hours=resolved_labor_hours,
+        ),
+        CostProfileValues(
+            energy_cost_per_kwh=profile.energy_cost_per_kwh,
+            labor_cost_per_hour=profile.labor_cost_per_hour,
+            packaging_cost_flat=profile.packaging_cost_flat,
+            waste_percentage=profile.waste_percentage,
+            fees_percentage=profile.fees_percentage,
+            profit_margin_percentage=resolved_margin,
+            tax_percentage=profile.tax_percentage or 0.0,
+        ),
+    )
+
     if piece_name is not None:
         quote.piece_name = piece_name
     if printer_name is not None:
         quote.printer_name = printer_name
-    if weight_g is not None:
-        quote.weight_g = weight_g
-    if quantity is not None:
-        quote.quantity = quantity
+    quote.machine_id = resolved_machine_id
+    quote.material_id = resolved_material_id
+    quote.weight_g = resolved_weight_g
+    quote.cost_per_kg = resolved_cost_per_kg
+    quote.extra_items = resolved_extra_items
+    quote.print_time_hours = resolved_print_time_hours
+    quote.depreciation_mode = resolved_depreciation_mode
+    quote.depreciation_value = resolved_depreciation_value
+    quote.labor_hours = resolved_labor_hours
+    quote.profit_margin_percentage = resolved_margin
+    quote.quantity = resolved_quantity
+    quote.cost_breakdown_snapshot = asdict(breakdown)
+    quote.production_cost = breakdown.production_cost
+    quote.suggested_price = breakdown.suggested_price
     if final_price is not None:
         quote.final_price = final_price
     db.commit()
