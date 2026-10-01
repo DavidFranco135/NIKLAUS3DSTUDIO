@@ -92,6 +92,7 @@ def _call_asgi_via_wsgi_environ(environ: dict) -> tuple[bytes, int, list[tuple[s
     invoker="public",
     memory=options.MemoryOption.GB_1,
     timeout_sec=60,
+    min_instances=1,
     secrets=_SECRETS,
 )
 def api(req: https_fn.Request) -> https_fn.Response:
