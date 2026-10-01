@@ -114,9 +114,21 @@ function IconCard({ className }: { className?: string }) {
   );
 }
 
+function IconGrid({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Painel", icon: IconHome },
   { href: "/produtos", label: "Produtos", icon: IconTag },
+  { href: "/catalogo", label: "Catálogo", icon: IconGrid },
   { href: "/projetos", label: "Projetos", icon: IconBox },
   { href: "/pedidos", label: "Pedidos", icon: IconClipboard },
   { href: "/clientes", label: "Clientes", icon: IconUsers },

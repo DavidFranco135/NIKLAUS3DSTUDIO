@@ -10,6 +10,7 @@ from src.interfaces.http.dependencies import get_db, require_org_role
 from src.interfaces.http.errors import as_http_exception
 from src.interfaces.http.v1.schemas import (
     CreateProductRequest,
+    ProductCostItem,
     ProductCostResponse,
     ProductResponse,
     UpdateProductRequest,
@@ -28,6 +29,9 @@ def _to_response(db: Session, product) -> ProductResponse:
         description=product.description,
         print_time_hours=product.print_time_hours,
         machine_id=product.machine_id,
+        manual_price=product.manual_price,
+        size=product.size,
+        photo_url=product.photo_url,
         is_active=product.is_active,
         created_at=product.created_at,
         materials=materials,
@@ -51,6 +55,9 @@ def create_product(
             description=payload.description,
             print_time_hours=payload.print_time_hours,
             machine_id=payload.machine_id,
+            manual_price=payload.manual_price,
+            size=payload.size,
+            photo_url=payload.photo_url,
             materials=[m.model_dump() for m in payload.materials],
         )
     except DomainError as exc:
@@ -66,6 +73,43 @@ def create_product(
 def list_products(organization_id: UUID, db: Session = Depends(get_db)) -> list[ProductResponse]:
     products = product_use_cases.list_products(db, organization_id=organization_id)
     return [_to_response(db, p) for p in products]
+
+
+@router.get(
+    "/costs",
+    response_model=list[ProductCostItem],
+    dependencies=[Depends(require_org_role(Role.VIEWER))],
+)
+def list_products_costs(
+    organization_id: UUID, cost_profile_id: UUID, db: Session = Depends(get_db)
+) -> list[ProductCostItem]:
+    """One request for every product's cost, instead of the frontend firing
+
+    one `/products/{id}/cost` call per product — see
+    `product_use_cases.list_products_costs`'s docstring.
+    """
+    try:
+        breakdowns = product_use_cases.list_products_costs(
+            db, organization_id=organization_id, cost_profile_id=cost_profile_id
+        )
+    except DomainError as exc:
+        raise as_http_exception(exc) from exc
+    return [
+        ProductCostItem(
+            product_id=product_id,
+            material_cost=b.material_cost,
+            waste_cost=b.waste_cost,
+            energy_cost=b.energy_cost,
+            machine_cost=b.machine_cost,
+            labor_cost=b.labor_cost,
+            packaging_cost=b.packaging_cost,
+            fees=b.fees,
+            production_cost=b.production_cost,
+            tax_amount=b.tax_amount,
+            suggested_price=b.suggested_price,
+        )
+        for product_id, b in breakdowns.items()
+    ]
 
 
 @router.get(
@@ -143,6 +187,9 @@ def update_product(
             description=payload.description,
             print_time_hours=payload.print_time_hours,
             machine_id=payload.machine_id,
+            manual_price=payload.manual_price,
+            size=payload.size,
+            photo_url=payload.photo_url,
             materials=(
                 [m.model_dump() for m in payload.materials]
                 if payload.materials is not None

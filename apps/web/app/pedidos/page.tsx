@@ -217,7 +217,13 @@ export default function PedidosPage() {
     setEditItemProductId(productId);
     setEditItemUnitCost("");
     setEditItemUnitPrice("");
-    if (!productId || !accessToken || !defaultCostProfile) return;
+    if (!productId) return;
+    const manualPrice = products.find((p) => p.id === productId)?.manual_price;
+    if (manualPrice != null) {
+      setEditItemUnitPrice(manualPrice.toFixed(2));
+      return;
+    }
+    if (!accessToken || !defaultCostProfile) return;
     setIsPricingItemEdit(true);
     try {
       const cost = await apiFetch<ProductCost>(
@@ -300,7 +306,13 @@ export default function PedidosPage() {
     setItemProductId(productId);
     setItemUnitCost("");
     setItemUnitPrice("");
-    if (!productId || !accessToken || !defaultCostProfile) return;
+    if (!productId) return;
+    const manualPrice = products.find((p) => p.id === productId)?.manual_price;
+    if (manualPrice != null) {
+      setItemUnitPrice(manualPrice.toFixed(2));
+      return;
+    }
+    if (!accessToken || !defaultCostProfile) return;
     setIsPricingItem(true);
     try {
       const cost = await apiFetch<ProductCost>(

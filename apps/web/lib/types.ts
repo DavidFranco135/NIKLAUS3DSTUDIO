@@ -282,6 +282,9 @@ export type Product = {
   description: string | null;
   print_time_hours: number | null;
   machine_id: string | null;
+  manual_price: number | null;
+  size: string | null;
+  photo_url: string | null;
   is_active: boolean;
   created_at: string;
   materials: ProductMaterialLine[];
@@ -299,6 +302,8 @@ export type ProductCost = {
   tax_amount: number;
   suggested_price: number;
 };
+
+export type ProductCostItem = ProductCost & { product_id: string };
 
 export type DashboardData = {
   orders_by_status: Record<string, number>;

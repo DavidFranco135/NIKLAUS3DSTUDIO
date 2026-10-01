@@ -16,6 +16,8 @@ dependencies = [
   "boto3>=1.34",
   "email-validator>=2.2",
   "google-cloud-firestore>=2.16",
+  "requests>=2.31",
+  "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]

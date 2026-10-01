@@ -38,6 +38,7 @@ _SECRETS = [
     "S3_BUCKET",
     "S3_REGION",
     "API_CORS_ORIGINS",
+    "IMGBB_API_KEY",
 ]
 
 

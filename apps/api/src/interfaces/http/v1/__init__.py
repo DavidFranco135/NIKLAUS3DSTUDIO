@@ -15,6 +15,7 @@ from src.interfaces.http.v1.orders import router as orders_router
 from src.interfaces.http.v1.organizations import router as organizations_router
 from src.interfaces.http.v1.products import router as products_router
 from src.interfaces.http.v1.projects import router as projects_router
+from src.interfaces.http.v1.uploads import router as uploads_router
 from src.interfaces.http.v1.users import router as users_router
 
 router = APIRouter()
@@ -24,6 +25,7 @@ router.include_router(users_router)
 router.include_router(organizations_router)
 router.include_router(customers_router)
 router.include_router(projects_router)
+router.include_router(uploads_router)
 router.include_router(calculator_router)
 router.include_router(materials_router)
 router.include_router(products_router)

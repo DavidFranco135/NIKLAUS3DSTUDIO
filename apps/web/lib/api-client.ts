@@ -53,3 +53,28 @@ export async function apiFetch<T>(
   }
   return (await response.json()) as T;
 }
+
+export async function uploadImage(
+  path: string,
+  accessToken: string | null | undefined,
+  file: File
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // No Content-Type header here on purpose — the browser sets
+  // multipart/form-data with the right boundary itself; forcing one
+  // manually breaks the server's multipart parsing.
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new ApiError(response.status, extractDetailMessage(errorBody, response.statusText));
+  }
+  return (await response.json()) as { url: string };
+}

@@ -517,6 +517,9 @@ class ProductRepository:
         description: str | None,
         print_time_hours: float | None,
         machine_id: UUID | None,
+        manual_price: float | None = None,
+        size: str | None = None,
+        photo_url: str | None = None,
     ) -> Product:
         product = Product(
             organization_id=organization_id,
@@ -524,6 +527,9 @@ class ProductRepository:
             description=description,
             print_time_hours=print_time_hours,
             machine_id=machine_id,
+            manual_price=manual_price,
+            size=size,
+            photo_url=photo_url,
         )
         doc_ref = self._collection(organization_id).document(str(product.id))
         doc_ref.set(to_dict(product))

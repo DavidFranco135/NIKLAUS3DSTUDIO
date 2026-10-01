@@ -181,3 +181,7 @@ class InvalidWebhookSignatureError(DomainError):
 
 class InvalidWebhookPayloadError(DomainError):
     pass
+
+
+class ImageTooLargeError(DomainError):
+    pass

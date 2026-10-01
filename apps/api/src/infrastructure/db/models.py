@@ -232,6 +232,14 @@ class Product(Base):
     machine_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("machines.id"), nullable=True
     )
+    # Set for a "simple" product created without a BOM/machine/cost profile -
+    # a fixed sale price typed by hand instead of the formula-derived one.
+    # When set, compute_product_cost short-circuits to this value.
+    manual_price: Mapped[float | None] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=True
+    )
+    size: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

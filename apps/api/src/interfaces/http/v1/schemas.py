@@ -402,6 +402,9 @@ class CreateProductRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     print_time_hours: float | None = Field(default=None, ge=0)
     machine_id: UUID | None = None
+    manual_price: float | None = Field(default=None, ge=0)
+    size: str | None = Field(default=None, max_length=100)
+    photo_url: str | None = Field(default=None, max_length=2000)
     materials: list[ProductMaterialInput] = Field(default_factory=list)
 
 
@@ -410,6 +413,9 @@ class UpdateProductRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     print_time_hours: float | None = Field(default=None, ge=0)
     machine_id: UUID | None = None
+    manual_price: float | None = Field(default=None, ge=0)
+    size: str | None = Field(default=None, max_length=100)
+    photo_url: str | None = Field(default=None, max_length=2000)
     materials: list[ProductMaterialInput] | None = None
 
 
@@ -424,11 +430,28 @@ class ProductResponse(BaseModel):
     description: str | None
     print_time_hours: float | None
     machine_id: UUID | None
+    manual_price: float | None
+    size: str | None
+    photo_url: str | None
     is_active: bool
     created_at: datetime
     materials: list[ProductMaterialResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
+
+class ProductCostItem(BaseModel):
+    product_id: UUID
+    material_cost: float
+    waste_cost: float
+    energy_cost: float
+    machine_cost: float
+    labor_cost: float
+    packaging_cost: float
+    fees: float
+    production_cost: float
+    tax_amount: float
+    suggested_price: float
 
 
 class ProductCostResponse(BaseModel):
@@ -627,3 +650,7 @@ class UsageItemResponse(BaseModel):
     current_usage: float | None
     limit: float | None
     enabled: bool | None
+
+
+class ImageUploadResponse(BaseModel):
+    url: str

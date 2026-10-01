@@ -8,6 +8,7 @@ from src.domain.shared.exceptions import (
     FileAssetNotFoundError,
     FileNotUploadedError,
     FinancialTransactionNotFoundError,
+    ImageTooLargeError,
     InsufficientStockError,
     InvalidCostInputsError,
     InvalidCredentialsError,
@@ -74,6 +75,7 @@ _STATUS_BY_ERROR = {
     LimitExceededError: status.HTTP_402_PAYMENT_REQUIRED,
     InvalidWebhookSignatureError: status.HTTP_400_BAD_REQUEST,
     InvalidWebhookPayloadError: status.HTTP_400_BAD_REQUEST,
+    ImageTooLargeError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 
