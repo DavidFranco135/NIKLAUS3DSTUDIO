@@ -1,0 +1,26 @@
+# Cloud Functions build file (Firebase's Python buildpack installs from this,
+# not pyproject.toml). Mirrors pyproject.toml's runtime [project.dependencies]
+# plus the firebase-functions/firebase-admin SDKs main.py needs - keep both
+# lists in sync when a runtime dependency changes. Render/local dev still
+# install via `pip install -e ".[dev]"` per the Dockerfile; this file is only
+# consulted by `firebase deploy`.
+firebase-functions>=0.4.0
+firebase-admin>=6.5.0
+fastapi>=0.115
+pydantic>=2.8
+pydantic-settings>=2.4
+sqlalchemy>=2.0
+alembic>=1.13
+psycopg[binary]>=3.2
+redis>=5.0
+celery>=5.4
+pyjwt>=2.9
+argon2-cffi>=23.1
+boto3>=1.34
+email-validator>=2.2
+build123d>=0.13
+trimesh>=4.0
+networkx>=3.0
+fast-simplification>=0.1
+rtree>=1.2
+google-cloud-firestore>=2.16
