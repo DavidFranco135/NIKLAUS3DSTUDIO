@@ -20,11 +20,10 @@ _AI_ENTITLEMENT_KEYS = ("max_ai_jobs_per_period", "feature.ai_text_to_3d", "feat
 
 
 def upgrade() -> None:
-    op.execute(
-        sa.text(
-            "DELETE FROM plan_entitlements WHERE key IN :keys"
-        ).bindparams(sa.bindparam("keys", expanding=True)),
-        {"keys": list(_AI_ENTITLEMENT_KEYS)},
+    op.get_bind().execute(
+        sa.text("DELETE FROM plan_entitlements WHERE key IN :keys").bindparams(
+            sa.bindparam("keys", expanding=True, value=list(_AI_ENTITLEMENT_KEYS))
+        )
     )
     op.drop_index(op.f('ix_ai_job_attempts_ai_job_id'), table_name='ai_job_attempts')
     op.drop_table('ai_job_attempts')
