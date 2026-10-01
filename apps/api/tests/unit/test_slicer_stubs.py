@@ -1,7 +1,7 @@
 import pytest
 
-from src.domain.ai.ports import MeshRef
 from src.domain.shared.exceptions import ProviderNotConfiguredError
+from src.domain.shared.provider_ports import MeshRef
 from src.domain.slicing.profiles import MaterialProfile, PrinterProfile
 from src.infrastructure.slicers.orcaslicer.adapter import OrcaSlicerCLIProvider
 from src.infrastructure.slicers.prusaslicer.adapter import PrusaSlicerCLIProvider
@@ -20,7 +20,7 @@ _MATERIAL = MaterialProfile(
 def test_slicer_stub_reports_unhealthy_with_licensing_pointer(provider):
     health = provider.health_check()
     assert health.healthy is False
-    assert "AI-LICENSES.md" in health.detail
+    assert "AGPL-3.0" in health.detail
 
 
 @pytest.mark.parametrize("provider", [PrusaSlicerCLIProvider(), OrcaSlicerCLIProvider()])

@@ -61,14 +61,6 @@ export type RequestUploadResponse = {
   storage_key: string;
 };
 
-export type AIJobAttempt = {
-  provider_name: string;
-  attempt_number: number;
-  status: string;
-  error_detail: string | null;
-  duration_ms: number | null;
-};
-
 export type Plan = {
   id: string;
   code: string;
@@ -95,19 +87,6 @@ export type UsageItem = {
   current_usage: number | null;
   limit: number | null;
   enabled: boolean | null;
-};
-
-export type AIJob = {
-  id: string;
-  project_id: string | null;
-  source_image_file_id: string | null;
-  task_type: string;
-  status: string;
-  error_message: string | null;
-  result_file_id: string | null;
-  result_project_version_id: string | null;
-  result_metadata: { development_only?: boolean; placeholder?: boolean; note?: string } | null;
-  attempts: AIJobAttempt[];
 };
 
 export type Customer = {

@@ -1,12 +1,12 @@
 from typing import NoReturn
 
-from src.domain.ai.ports import ProviderHealth
 from src.domain.shared.exceptions import ProviderNotConfiguredError
+from src.domain.shared.provider_ports import ProviderHealth
 
 _MESSAGE = (
     "{engine} não está configurado: nenhum binário CLI está instalado nesta "
     "infraestrutura e a licença AGPL-3.0 do projeto não foi confirmada com "
-    "jurídico para uso em SaaS antes de ser habilitado (ver docs/AI-LICENSES.md)."
+    "jurídico para uso em SaaS antes de ser habilitado."
 )
 
 

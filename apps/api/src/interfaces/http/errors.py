@@ -1,7 +1,6 @@
 from fastapi import HTTPException, status
 
 from src.domain.shared.exceptions import (
-    AIJobNotFoundError,
     CannotRemoveLastOwnerError,
     CostProfileNotFoundError,
     CustomerNotFoundError,
@@ -13,7 +12,6 @@ from src.domain.shared.exceptions import (
     InvalidCostInputsError,
     InvalidCredentialsError,
     InvalidFinancialTransactionTypeError,
-    InvalidImageInputError,
     InvalidInventoryMovementError,
     InvalidOrderTransitionError,
     InvalidSubscriptionTransitionError,
@@ -53,9 +51,7 @@ _STATUS_BY_ERROR = {
     FileAssetNotFoundError: status.HTTP_404_NOT_FOUND,
     FileNotUploadedError: status.HTTP_409_CONFLICT,
     UnsupportedFileKindError: status.HTTP_422_UNPROCESSABLE_CONTENT,
-    InvalidImageInputError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
-    AIJobNotFoundError: status.HTTP_404_NOT_FOUND,
     ProviderNotConfiguredError: status.HTTP_501_NOT_IMPLEMENTED,
     CostProfileNotFoundError: status.HTTP_404_NOT_FOUND,
     QuoteNotFoundError: status.HTTP_404_NOT_FOUND,

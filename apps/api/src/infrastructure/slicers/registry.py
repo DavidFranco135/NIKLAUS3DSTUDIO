@@ -1,4 +1,4 @@
-from src.domain.ai.ports import SlicerProvider
+from src.domain.shared.provider_ports import SlicerProvider
 from src.infrastructure.slicers.orcaslicer.adapter import OrcaSlicerCLIProvider
 from src.infrastructure.slicers.prusaslicer.adapter import PrusaSlicerCLIProvider
 

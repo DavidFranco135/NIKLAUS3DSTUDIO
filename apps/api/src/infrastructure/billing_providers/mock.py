@@ -3,9 +3,9 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from src.domain.ai.ports import ProviderHealth
 from src.domain.billing.ports import BillingEventRef, PlanRef, SubscriptionRef
 from src.domain.shared.exceptions import InvalidWebhookPayloadError
+from src.domain.shared.provider_ports import ProviderHealth
 
 _PERIOD_LENGTH_DAYS = 30
 

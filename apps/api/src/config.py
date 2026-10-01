@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     api_cors_origins: str = "http://localhost:3000"
 
     database_url: str = "postgresql+psycopg://studio:studio@localhost:5432/studio"
-    redis_url: str = "redis://localhost:6379/0"
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "studio"
@@ -22,13 +21,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 30
 
-    celery_task_always_eager: bool = False
-
     firestore_project_id: str = "niklaus3d"
     # "postgres" (default, today's unchanged production behavior) or
     # "firestore" - the Phase 5 cutover switch from the Firebase migration
-    # plan. AI features (application/ai/*) stay SQL-only regardless of
-    # this flag - see the plan's guiding decision #5.
+    # plan.
     db_backend: str = "postgres"
 
     @property

@@ -134,32 +134,6 @@ class DownloadUrlResponse(BaseModel):
     download_url: str
 
 
-class CreateAIJobRequest(BaseModel):
-    prompt: str | None = Field(default=None, max_length=2000)
-    image_file_id: UUID | None = None
-    project_id: UUID | None = None
-    variant_seed: str | None = Field(default=None, max_length=64)
-
-    @model_validator(mode="after")
-    def _require_prompt_or_image(self) -> "CreateAIJobRequest":
-        if not self.prompt and self.image_file_id is None:
-            raise ValueError("Informe um prompt e/ou uma imagem (image_file_id).")
-        if self.prompt is not None and len(self.prompt.strip()) < 3 and self.image_file_id is None:
-            raise ValueError("prompt deve ter ao menos 3 caracteres quando não há imagem.")
-        return self
-
-
-class AIJobAttemptResponse(BaseModel):
-    provider_name: str
-    attempt_number: int
-    status: str
-    error_detail: str | None
-    duration_ms: int | None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
 class CreateCustomerRequest(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     email: EmailStr | None = None
@@ -521,25 +495,6 @@ class InventoryMovementResponse(BaseModel):
     notes: str | None
     reference_order_id: UUID | None
     created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class AIJobResponse(BaseModel):
-    id: UUID
-    project_id: UUID | None
-    source_image_file_id: UUID | None
-    task_type: str
-    status: str
-    input_spec: dict
-    error_message: str | None
-    result_file_id: UUID | None
-    result_project_version_id: UUID | None
-    result_metadata: dict | None
-    created_at: datetime
-    started_at: datetime | None
-    finished_at: datetime | None
-    attempts: list[AIJobAttemptResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

@@ -15,7 +15,6 @@ from src.domain.shared.exceptions import (
 )
 from src.infrastructure.billing_providers.registry import get_billing_provider
 from src.infrastructure.db.models import BillingEvent, Plan, PlanEntitlement, Subscription
-from src.infrastructure.db.repositories import AIJobRepository
 from src.infrastructure.repositories import (
     BillingEventRepository,
     FileAssetRepository,
@@ -33,10 +32,9 @@ from src.infrastructure.repositories import (
 DEFAULT_PLAN_CODE = "dev_unlimited"
 
 # Chaves de entitlement conhecidas nesta fase — usadas pelos módulos que já
-# têm enforcement ligado (Projetos, AI Jobs, Storage). Novas chaves não
-# exigem migration: só uma nova linha em `plan_entitlements`.
+# têm enforcement ligado (Projetos, Storage). Novas chaves não exigem
+# migration: só uma nova linha em `plan_entitlements`.
 KEY_MAX_PROJECTS = "max_projects"
-KEY_MAX_AI_JOBS_PER_PERIOD = "max_ai_jobs_per_period"
 KEY_MAX_STORAGE_MB = "max_storage_mb"
 
 
@@ -68,10 +66,7 @@ def _to_ref(subscription: Subscription) -> SubscriptionRef:
 # migration (ou vice-versa) é uma inconsistência a evitar.
 _DEV_PLAN_ENTITLEMENTS: list[dict] = [
     {"key": KEY_MAX_PROJECTS, "limit_type": "numeric", "numeric_value": 20},
-    {"key": KEY_MAX_AI_JOBS_PER_PERIOD, "limit_type": "numeric", "numeric_value": 50},
     {"key": KEY_MAX_STORAGE_MB, "limit_type": "numeric", "numeric_value": 500},
-    {"key": "feature.ai_text_to_3d", "limit_type": "boolean", "bool_value": True},
-    {"key": "feature.ai_image_to_3d", "limit_type": "boolean", "bool_value": True},
 ]
 
 
@@ -219,15 +214,9 @@ class UsageItem:
     enabled: bool | None
 
 
-def _current_usage_for_key(
-    db: Session, *, organization_id: UUID, key: str, subscription: Subscription
-) -> float:
+def _current_usage_for_key(db: Session, *, organization_id: UUID, key: str) -> float:
     if key == KEY_MAX_PROJECTS:
         return float(len(ProjectRepository(db).list_for_org(organization_id)))
-    if key == KEY_MAX_AI_JOBS_PER_PERIOD:
-        return float(
-            AIJobRepository(db).count_since(organization_id, subscription.current_period_start)
-        )
     if key == KEY_MAX_STORAGE_MB:
         return FileAssetRepository(db).sum_size_bytes_for_org(organization_id) / (1024 * 1024)
     return 0.0
@@ -251,9 +240,7 @@ def get_usage_summary(db: Session, *, organization_id: UUID) -> list[UsageItem]:
                 )
             )
         else:
-            usage = _current_usage_for_key(
-                db, organization_id=organization_id, key=row.key, subscription=subscription
-            )
+            usage = _current_usage_for_key(db, organization_id=organization_id, key=row.key)
             items.append(
                 UsageItem(
                     key=row.key,

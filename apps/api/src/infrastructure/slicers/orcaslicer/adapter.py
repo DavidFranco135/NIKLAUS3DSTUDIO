@@ -1,4 +1,4 @@
-from src.domain.ai.ports import MeshRef, ProviderHealth, SlicerProvider
+from src.domain.shared.provider_ports import MeshRef, ProviderHealth, SlicerProvider
 from src.domain.slicing.profiles import MaterialProfile, PrinterProfile
 from src.domain.slicing.report import SliceResult
 from src.infrastructure.slicers._not_configured import not_configured_health, raise_not_configured

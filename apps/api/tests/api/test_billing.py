@@ -21,14 +21,6 @@ def _create_tight_plan(db_session, *, code: str, max_projects: int) -> Plan:
     )
     db_session.add(
         PlanEntitlement(
-            plan_id=plan.id,
-            key="max_ai_jobs_per_period",
-            limit_type="numeric",
-            numeric_value=50,
-        )
-    )
-    db_session.add(
-        PlanEntitlement(
             plan_id=plan.id, key="max_storage_mb", limit_type="numeric", numeric_value=500
         )
     )
@@ -68,7 +60,6 @@ def test_usage_reports_zero_for_a_fresh_org(client: TestClient):
     usage_by_key = {item["key"]: item for item in response.json()}
     assert usage_by_key["max_projects"]["current_usage"] == 0
     assert usage_by_key["max_projects"]["limit"] == 20
-    assert usage_by_key["feature.ai_text_to_3d"]["enabled"] is True
 
 
 def test_usage_increases_as_projects_are_created(client: TestClient):

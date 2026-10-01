@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from src.domain.ai.ports import ProviderHealth
+from src.domain.shared.provider_ports import ProviderHealth
 
 
 @dataclass(frozen=True)
