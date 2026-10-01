@@ -200,6 +200,7 @@ def update_order_item(
             organization_id=organization_id,
             order_id=order_id,
             item_id=item_id,
+            product_id=payload.product_id,
             quantity=payload.quantity,
             unit_cost=payload.unit_cost,
             unit_price=payload.unit_price,

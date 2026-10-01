@@ -71,9 +71,11 @@ export default function PedidosPage() {
   const [isSavingOrderEdit, setIsSavingOrderEdit] = useState(false);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editItemProductId, setEditItemProductId] = useState("");
   const [editItemQuantity, setEditItemQuantity] = useState("1");
   const [editItemUnitCost, setEditItemUnitCost] = useState("");
   const [editItemUnitPrice, setEditItemUnitPrice] = useState("");
+  const [isPricingItemEdit, setIsPricingItemEdit] = useState(false);
   const [isSavingItemEdit, setIsSavingItemEdit] = useState(false);
 
   const orgPath = `/api/v1/organizations/${currentOrganizationId}`;
@@ -201,6 +203,7 @@ export default function PedidosPage() {
 
   function startEditItem(item: OrderItem) {
     setEditingItemId(item.id);
+    setEditItemProductId(item.product_id ?? "");
     setEditItemQuantity(String(item.quantity));
     setEditItemUnitCost(item.unit_cost != null ? String(item.unit_cost) : "");
     setEditItemUnitPrice(item.unit_price != null ? String(item.unit_price) : "");
@@ -208,6 +211,26 @@ export default function PedidosPage() {
 
   function cancelEditItem() {
     setEditingItemId(null);
+  }
+
+  async function handleEditPickProduct(productId: string) {
+    setEditItemProductId(productId);
+    setEditItemUnitCost("");
+    setEditItemUnitPrice("");
+    if (!productId || !accessToken || !defaultCostProfile) return;
+    setIsPricingItemEdit(true);
+    try {
+      const cost = await apiFetch<ProductCost>(
+        `${orgPath}/products/${productId}/cost?cost_profile_id=${defaultCostProfile.id}`,
+        { accessToken }
+      );
+      setEditItemUnitCost(cost.production_cost.toFixed(2));
+      setEditItemUnitPrice(cost.suggested_price.toFixed(2));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Falha ao calcular custo do produto.");
+    } finally {
+      setIsPricingItemEdit(false);
+    }
   }
 
   async function handleSaveItemEdit(orderId: string, item: OrderItem) {
@@ -219,6 +242,7 @@ export default function PedidosPage() {
         method: "PATCH",
         accessToken,
         body: JSON.stringify({
+          product_id: editItemProductId || null,
           quantity: Number(editItemQuantity || 1),
           unit_cost: editItemUnitCost ? Number(editItemUnitCost) : null,
           unit_price: editItemUnitPrice ? Number(editItemUnitPrice) : null,
@@ -473,22 +497,35 @@ export default function PedidosPage() {
                                       </span>
                                     </div>
                                     {editingItemId === item.id && (
-                                      <div className="flex flex-col gap-2 rounded border border-neutral-800 bg-neutral-950/60 p-3 sm:flex-row sm:items-end">
-                                        <div className="w-full sm:w-24">
+                                      <div className="grid grid-cols-1 gap-2 rounded border border-neutral-800 bg-neutral-950/60 p-3 sm:grid-cols-2">
+                                        <div className="sm:col-span-2">
+                                          <label className="mb-1 block text-xs text-neutral-500">Produto</label>
+                                          <select
+                                            value={editItemProductId}
+                                            onChange={(e) => handleEditPickProduct(e.target.value)}
+                                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                                          >
+                                            <option value="">Selecione o produto…</option>
+                                            {products.map((p) => (
+                                              <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div>
                                           <label className="mb-1 block text-xs text-neutral-500">Qtd.</label>
                                           <input type="number" min={1} value={editItemQuantity} onChange={(e) => setEditItemQuantity(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
                                         </div>
-                                        <div className="w-full sm:w-28">
+                                        <div>
                                           <label className="mb-1 block text-xs text-neutral-500">Custo unit.</label>
                                           <input type="number" step="0.01" value={editItemUnitCost} onChange={(e) => setEditItemUnitCost(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
                                         </div>
-                                        <div className="w-full sm:w-28">
+                                        <div>
                                           <label className="mb-1 block text-xs text-neutral-500">Preço unit.</label>
                                           <input type="number" step="0.01" value={editItemUnitPrice} onChange={(e) => setEditItemUnitPrice(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
                                         </div>
-                                        <div className="flex gap-2">
-                                          <button onClick={() => handleSaveItemEdit(order.id, item)} disabled={isSavingItemEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
-                                            {isSavingItemEdit ? "Salvando…" : "Salvar"}
+                                        <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                          <button onClick={() => handleSaveItemEdit(order.id, item)} disabled={isSavingItemEdit || isPricingItemEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                                            {isPricingItemEdit ? "Calculando…" : isSavingItemEdit ? "Salvando…" : "Salvar"}
                                           </button>
                                           <button onClick={cancelEditItem} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
                                             Cancelar

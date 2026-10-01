@@ -922,10 +922,13 @@ class OrderItemRepository:
         self,
         item: OrderItem,
         *,
+        product_id: UUID | None = None,
         quantity: int | None,
         unit_cost: float | None,
         unit_price: float | None,
     ) -> None:
+        if product_id is not None:
+            item.product_id = product_id
         if quantity is not None:
             item.quantity = quantity
         if unit_cost is not None:

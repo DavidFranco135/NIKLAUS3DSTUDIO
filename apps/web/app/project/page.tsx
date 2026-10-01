@@ -345,7 +345,7 @@ function ProjectDetailPageInner() {
             </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
             <form onSubmit={handleGenerateWithAI} className="space-y-4">
               <textarea
                 placeholder='Texto (opcional se enviar imagem). Ex: "Crie um chaveiro de 70x35x4mm com o nome CARLOS, furo de 5mm"'

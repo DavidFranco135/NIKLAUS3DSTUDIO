@@ -359,6 +359,7 @@ class CreateOrderItemRequest(BaseModel):
 
 
 class UpdateOrderItemRequest(BaseModel):
+    product_id: UUID | None = None
     quantity: int | None = Field(default=None, ge=1)
     unit_cost: float | None = Field(default=None, ge=0)
     unit_price: float | None = Field(default=None, ge=0)

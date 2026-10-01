@@ -164,7 +164,7 @@ export default function DashboardPage() {
               />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
                 <h2 className="mb-3 text-sm font-medium text-neutral-300">Pedidos por status</h2>
                 {ordersChartData.length === 0 ? (

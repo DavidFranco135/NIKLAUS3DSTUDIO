@@ -200,14 +200,17 @@ def update_order_item(
     organization_id: UUID,
     order_id: UUID,
     item_id: UUID,
+    product_id: UUID | None = None,
     quantity: int | None,
     unit_cost: float | None,
     unit_price: float | None,
 ) -> OrderItem:
     order = get_order(db, organization_id=organization_id, order_id=order_id)
     item = _get_order_item(db, organization_id=organization_id, order_id=order_id, item_id=item_id)
+    if product_id is not None:
+        get_product(db, organization_id=organization_id, product_id=product_id)
     OrderItemRepository(db).update(
-        item, quantity=quantity, unit_cost=unit_cost, unit_price=unit_price
+        item, product_id=product_id, quantity=quantity, unit_cost=unit_cost, unit_price=unit_price
     )
     _recompute_order_total(db, organization_id=organization_id, order=order)
     db.commit()
