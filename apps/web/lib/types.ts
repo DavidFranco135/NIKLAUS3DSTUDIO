@@ -284,7 +284,7 @@ export type Product = {
   machine_id: string | null;
   manual_price: number | null;
   size: string | null;
-  photo_url: string | null;
+  photo_urls: string[];
   is_active: boolean;
   created_at: string;
   materials: ProductMaterialLine[];

@@ -29,7 +29,7 @@ def create_product(
     machine_id: UUID | None,
     manual_price: float | None = None,
     size: str | None = None,
-    photo_url: str | None = None,
+    photo_urls: list[str] | None = None,
     materials: list[dict],
 ) -> Product:
     """`materials` is a list of {"material_id": UUID, "quantity_g": float} —
@@ -56,7 +56,7 @@ def create_product(
         machine_id=machine_id,
         manual_price=manual_price,
         size=size,
-        photo_url=photo_url,
+        photo_urls=photo_urls,
     )
     material_repo = ProductMaterialRepository(db)
     for line in materials:
@@ -99,13 +99,15 @@ def update_product(
     machine_id: UUID | None,
     manual_price: float | None = None,
     size: str | None = None,
-    photo_url: str | None = None,
+    photo_urls: list[str] | None = None,
     materials: list[dict] | None,
 ) -> Product:
     """`materials`, when provided, fully replaces the product's BOM (the
 
     frontend always sends the complete, current list of lines — there is no
-    partial line-level update).
+    partial line-level update). `photo_urls` works the same way — `None`
+    means "don't touch", an (even empty) list replaces it wholesale, which
+    is how the catalog's photo viewer adds/removes individual photos.
     """
     product = get_product(db, organization_id=organization_id, product_id=product_id)
     if name is not None:
@@ -121,8 +123,8 @@ def update_product(
         product.manual_price = manual_price
     if size is not None:
         product.size = size
-    if photo_url is not None:
-        product.photo_url = photo_url
+    if photo_urls is not None:
+        product.photo_urls = photo_urls
     if materials is not None:
         for line in materials:
             get_material(db, organization_id=organization_id, material_id=line["material_id"])

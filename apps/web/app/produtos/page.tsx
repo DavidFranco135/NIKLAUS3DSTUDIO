@@ -32,7 +32,7 @@ export default function ProdutosPage() {
   const [bomLines, setBomLines] = useState<BomLine[]>([{ material_id: "", quantity_g: "" }]);
   const [manualPrice, setManualPrice] = useState("");
   const [size, setSize] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const orgPath = `/api/v1/organizations/${currentOrganizationId}`;
@@ -106,25 +106,32 @@ export default function ProdutosPage() {
     setBomLines([{ material_id: "", quantity_g: "" }]);
     setManualPrice("");
     setSize("");
-    setPhotoUrl("");
+    setPhotoUrls([]);
     setMode("completo");
     setEditingId(null);
     setShowForm(false);
   }
 
   async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !accessToken) return;
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0 || !accessToken) return;
+    event.target.value = "";
     setIsUploadingPhoto(true);
     setError(null);
     try {
-      const { url } = await uploadImage(`${orgPath}/uploads/image`, accessToken, file);
-      setPhotoUrl(url);
+      for (const file of files) {
+        const { url } = await uploadImage(`${orgPath}/uploads/image`, accessToken, file);
+        setPhotoUrls((urls) => [...urls, url]);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Falha ao enviar foto.");
     } finally {
       setIsUploadingPhoto(false);
     }
+  }
+
+  function removePhoto(url: string) {
+    setPhotoUrls((urls) => urls.filter((u) => u !== url));
   }
 
   function startEdit(product: Product) {
@@ -143,7 +150,7 @@ export default function ProdutosPage() {
     );
     setManualPrice(product.manual_price != null ? String(product.manual_price) : "");
     setSize(product.size ?? "");
-    setPhotoUrl(product.photo_url ?? "");
+    setPhotoUrls(product.photo_urls ?? []);
     setMode(product.manual_price != null ? "simples" : "completo");
     setShowForm(true);
   }
@@ -162,7 +169,7 @@ export default function ProdutosPage() {
         machine_id: mode === "simples" ? null : machineId || null,
         manual_price: mode === "simples" ? Number(manualPrice) : null,
         size: size || null,
-        photo_url: photoUrl || null,
+        photo_urls: photoUrls,
         materials: validLines.map((l) => ({
           material_id: l.material_id,
           quantity_g: Number(l.quantity_g),
@@ -287,12 +294,25 @@ export default function ProdutosPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs text-neutral-500">Foto do produto (opcional)</label>
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="block w-full text-sm" />
+              <label className="block text-xs text-neutral-500">Fotos do produto (opcional, pode selecionar várias)</label>
+              <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="block w-full text-sm" />
               {isUploadingPhoto && <p className="text-xs text-neutral-500">Enviando foto…</p>}
-              {photoUrl && !isUploadingPhoto && (
-
-                <img src={photoUrl} alt="" className="h-20 w-20 rounded object-cover" />
+              {photoUrls.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {photoUrls.map((url) => (
+                    <div key={url} className="relative">
+                      <img src={url} alt="" className="h-20 w-20 rounded object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(url)}
+                        className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs leading-none text-white hover:bg-red-500"
+                        aria-label="Remover foto"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -362,9 +382,15 @@ export default function ProdutosPage() {
                 <div key={product.id} className="space-y-2 rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 gap-3">
-                      {product.photo_url && (
-
-                        <img src={product.photo_url} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
+                      {product.photo_urls.length > 0 && (
+                        <div className="relative shrink-0">
+                          <img src={product.photo_urls[0]} alt="" className="h-14 w-14 rounded object-cover" />
+                          {product.photo_urls.length > 1 && (
+                            <span className="absolute -right-1 -top-1 rounded-full bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-300">
+                              +{product.photo_urls.length - 1}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <div className="min-w-0">
                         <h3 className="truncate font-medium">{product.name}</h3>

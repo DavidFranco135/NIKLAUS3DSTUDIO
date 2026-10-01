@@ -144,7 +144,7 @@ class Product:
     machine_id: uuid.UUID | None = None
     manual_price: float | None = None
     size: str | None = None
-    photo_url: str | None = None
+    photo_urls: list[str] = field(default_factory=list)
     is_active: bool = True
     created_at: datetime = field(default_factory=_now)
     updated_at: datetime = field(default_factory=_now)

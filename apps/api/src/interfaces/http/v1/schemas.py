@@ -404,7 +404,7 @@ class CreateProductRequest(BaseModel):
     machine_id: UUID | None = None
     manual_price: float | None = Field(default=None, ge=0)
     size: str | None = Field(default=None, max_length=100)
-    photo_url: str | None = Field(default=None, max_length=2000)
+    photo_urls: list[str] = Field(default_factory=list)
     materials: list[ProductMaterialInput] = Field(default_factory=list)
 
 
@@ -415,7 +415,7 @@ class UpdateProductRequest(BaseModel):
     machine_id: UUID | None = None
     manual_price: float | None = Field(default=None, ge=0)
     size: str | None = Field(default=None, max_length=100)
-    photo_url: str | None = Field(default=None, max_length=2000)
+    photo_urls: list[str] | None = None
     materials: list[ProductMaterialInput] | None = None
 
 
@@ -432,7 +432,7 @@ class ProductResponse(BaseModel):
     machine_id: UUID | None
     manual_price: float | None
     size: str | None
-    photo_url: str | None
+    photo_urls: list[str] = Field(default_factory=list)
     is_active: bool
     created_at: datetime
     materials: list[ProductMaterialResponse] = Field(default_factory=list)

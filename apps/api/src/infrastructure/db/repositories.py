@@ -626,7 +626,7 @@ class ProductRepository:
         machine_id: UUID | None,
         manual_price: float | None = None,
         size: str | None = None,
-        photo_url: str | None = None,
+        photo_urls: list[str] | None = None,
     ) -> Product:
         product = Product(
             organization_id=organization_id,
@@ -636,7 +636,7 @@ class ProductRepository:
             machine_id=machine_id,
             manual_price=manual_price,
             size=size,
-            photo_url=photo_url,
+            photo_urls=photo_urls or [],
         )
         self.session.add(product)
         self.session.flush()
