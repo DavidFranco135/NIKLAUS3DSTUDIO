@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -392,219 +392,200 @@ export default function PedidosPage() {
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Cliente</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Total</th>
-                <th className="px-4 py-3 font-medium">Criado em</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
-                </tr>
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum pedido ainda.</td>
-                </tr>
-              ) : (
-                orders.map((order) => {
-                  const next = nextStatus(order.status);
-                  return (
-                    <Fragment key={order.id}>
-                      <tr className="hover:bg-neutral-900/50">
-                        <td className="px-4 py-3">{customerName(order.customer_id)}</td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded px-2 py-0.5 text-xs ${STATUS_TONE[order.status] ?? "bg-neutral-800 text-neutral-300"}`}>
-                            {STATUS_LABELS[order.status] ?? order.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{formatCurrency(order.total_amount)}</td>
-                        <td className="px-4 py-3">{formatDate(order.created_at)}</td>
-                        <td className="px-4 py-3 text-right space-x-3">
-                          <button onClick={() => toggleItems(order.id)} className="text-sm text-blue-400 hover:underline">
-                            Itens
+        <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+          {isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Carregando…</p>
+          ) : orders.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Nenhum pedido ainda.</p>
+          ) : (
+            orders.map((order) => {
+              const next = nextStatus(order.status);
+              return (
+                <div key={order.id} className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{customerName(order.customer_id)}</p>
+                      <p className="text-xs text-neutral-500">{formatDate(order.created_at)}</p>
+                    </div>
+                    <span className={`shrink-0 rounded px-2 py-0.5 text-xs ${STATUS_TONE[order.status] ?? "bg-neutral-800 text-neutral-300"}`}>
+                      {STATUS_LABELS[order.status] ?? order.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-neutral-300">
+                    Total: <span className="font-medium text-neutral-100">{formatCurrency(order.total_amount)}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
+                    <button onClick={() => toggleItems(order.id)} className="text-blue-400 hover:underline">
+                      Itens
+                    </button>
+                    {next && (
+                      <button onClick={() => handleAdvance(order)} className="text-green-400 hover:underline">
+                        Avançar → {STATUS_LABELS[next]}
+                      </button>
+                    )}
+                    <button onClick={() => startEditOrder(order)} className="text-blue-400 hover:underline">
+                      Editar
+                    </button>
+                    <button onClick={() => handleDeleteOrder(order)} className="text-red-400 hover:underline">
+                      Excluir
+                    </button>
+                  </div>
+                  {editingOrderId === order.id && (
+                    <div className="rounded border border-neutral-800 bg-neutral-950/80 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <div className="w-full sm:flex-1">
+                          <label className="mb-1 block text-xs text-neutral-500">Cliente</label>
+                          <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm">
+                            {customers.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-full sm:flex-1">
+                          <label className="mb-1 block text-xs text-neutral-500">Observações</label>
+                          <input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleSaveOrderEdit(order)} disabled={isSavingOrderEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                            {isSavingOrderEdit ? "Salvando…" : "Salvar"}
                           </button>
-                          {next && (
-                            <button onClick={() => handleAdvance(order)} className="text-sm text-green-400 hover:underline">
-                              Avançar → {STATUS_LABELS[next]}
-                            </button>
-                          )}
-                          <button onClick={() => startEditOrder(order)} className="text-sm text-blue-400 hover:underline">
-                            Editar
+                          <button onClick={cancelEditOrder} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
+                            Cancelar
                           </button>
-                          <button onClick={() => handleDeleteOrder(order)} className="text-sm text-red-400 hover:underline">
-                            Excluir
-                          </button>
-                        </td>
-                      </tr>
-                      {editingOrderId === order.id && (
-                        <tr>
-                          <td colSpan={5} className="bg-neutral-950/80 px-4 py-4">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                              <div className="w-full sm:flex-1">
-                                <label className="mb-1 block text-xs text-neutral-500">Cliente</label>
-                                <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm">
-                                  {customers.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                  ))}
-                                </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {expandedOrderId === order.id && (
+                    <div className="space-y-4 rounded border border-neutral-800 bg-neutral-950/80 p-3">
+                      {!itemsByOrder[order.id] ? (
+                        <p className="text-sm text-neutral-500">Carregando itens…</p>
+                      ) : itemsByOrder[order.id].length === 0 ? (
+                        <p className="text-sm text-neutral-500">Nenhum item neste pedido ainda.</p>
+                      ) : (
+                        <ul className="space-y-2 text-sm text-neutral-300">
+                          {itemsByOrder[order.id].map((item) => (
+                            <li key={item.id} className="space-y-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="min-w-0 flex-1 truncate">
+                                  {productName(item.product_id)} · Qtd. {item.quantity} — {item.status}
+                                </span>
+                                <span className="shrink-0">{formatCurrency((item.unit_price ?? 0) * item.quantity)}</span>
+                                <span className="shrink-0 space-x-2">
+                                  <button onClick={() => startEditItem(item)} className="text-xs text-blue-400 hover:underline">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => handleDeleteItem(order.id, item)} className="text-xs text-red-400 hover:underline">
+                                    Excluir
+                                  </button>
+                                </span>
                               </div>
-                              <div className="w-full sm:flex-1">
-                                <label className="mb-1 block text-xs text-neutral-500">Observações</label>
-                                <input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                              </div>
-                              <div className="flex gap-2">
-                                <button onClick={() => handleSaveOrderEdit(order)} disabled={isSavingOrderEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
-                                  {isSavingOrderEdit ? "Salvando…" : "Salvar"}
-                                </button>
-                                <button onClick={cancelEditOrder} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
-                                  Cancelar
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
+                              {editingItemId === item.id && (
+                                <div className="grid grid-cols-1 gap-2 rounded border border-neutral-800 bg-neutral-950/60 p-3 sm:grid-cols-2">
+                                  <div className="sm:col-span-2">
+                                    <label className="mb-1 block text-xs text-neutral-500">Produto</label>
+                                    <select
+                                      value={editItemProductId}
+                                      onChange={(e) => handleEditPickProduct(e.target.value)}
+                                      className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                                    >
+                                      <option value="">Selecione o produto…</option>
+                                      {products.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-neutral-500">Qtd.</label>
+                                    <input type="number" min={1} value={editItemQuantity} onChange={(e) => setEditItemQuantity(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-neutral-500">Custo unit.</label>
+                                    <input type="number" step="0.01" value={editItemUnitCost} onChange={(e) => setEditItemUnitCost(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-neutral-500">Preço unit.</label>
+                                    <input type="number" step="0.01" value={editItemUnitPrice} onChange={(e) => setEditItemUnitPrice(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                    <button onClick={() => handleSaveItemEdit(order.id, item)} disabled={isSavingItemEdit || isPricingItemEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                                      {isPricingItemEdit ? "Calculando…" : isSavingItemEdit ? "Salvando…" : "Salvar"}
+                                    </button>
+                                    <button onClick={cancelEditItem} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
                       )}
-                      {expandedOrderId === order.id && (
-                        <tr>
-                          <td colSpan={5} className="space-y-4 bg-neutral-950/80 px-4 py-4">
-                            {!itemsByOrder[order.id] ? (
-                              <p className="text-sm text-neutral-500">Carregando itens…</p>
-                            ) : itemsByOrder[order.id].length === 0 ? (
-                              <p className="text-sm text-neutral-500">Nenhum item neste pedido ainda.</p>
-                            ) : (
-                              <ul className="space-y-2 text-sm text-neutral-300">
-                                {itemsByOrder[order.id].map((item) => (
-                                  <li key={item.id} className="space-y-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="min-w-0 flex-1 truncate">
-                                        {productName(item.product_id)} · Qtd. {item.quantity} — {item.status}
-                                      </span>
-                                      <span className="shrink-0">{formatCurrency((item.unit_price ?? 0) * item.quantity)}</span>
-                                      <span className="shrink-0 space-x-2">
-                                        <button onClick={() => startEditItem(item)} className="text-xs text-blue-400 hover:underline">
-                                          Editar
-                                        </button>
-                                        <button onClick={() => handleDeleteItem(order.id, item)} className="text-xs text-red-400 hover:underline">
-                                          Excluir
-                                        </button>
-                                      </span>
-                                    </div>
-                                    {editingItemId === item.id && (
-                                      <div className="grid grid-cols-1 gap-2 rounded border border-neutral-800 bg-neutral-950/60 p-3 sm:grid-cols-2">
-                                        <div className="sm:col-span-2">
-                                          <label className="mb-1 block text-xs text-neutral-500">Produto</label>
-                                          <select
-                                            value={editItemProductId}
-                                            onChange={(e) => handleEditPickProduct(e.target.value)}
-                                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                                          >
-                                            <option value="">Selecione o produto…</option>
-                                            {products.map((p) => (
-                                              <option key={p.id} value={p.id}>{p.name}</option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <div>
-                                          <label className="mb-1 block text-xs text-neutral-500">Qtd.</label>
-                                          <input type="number" min={1} value={editItemQuantity} onChange={(e) => setEditItemQuantity(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                        </div>
-                                        <div>
-                                          <label className="mb-1 block text-xs text-neutral-500">Custo unit.</label>
-                                          <input type="number" step="0.01" value={editItemUnitCost} onChange={(e) => setEditItemUnitCost(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                        </div>
-                                        <div>
-                                          <label className="mb-1 block text-xs text-neutral-500">Preço unit.</label>
-                                          <input type="number" step="0.01" value={editItemUnitPrice} onChange={(e) => setEditItemUnitPrice(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 sm:col-span-2">
-                                          <button onClick={() => handleSaveItemEdit(order.id, item)} disabled={isSavingItemEdit || isPricingItemEdit} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
-                                            {isPricingItemEdit ? "Calculando…" : isSavingItemEdit ? "Salvando…" : "Salvar"}
-                                          </button>
-                                          <button onClick={cancelEditItem} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-400 hover:border-neutral-500">
-                                            Cancelar
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
 
-                            {products.length === 0 ? (
-                              <p className="text-xs text-yellow-300">
-                                Cadastre um produto na aba Produtos para poder adicioná-lo aqui.
-                              </p>
-                            ) : (
-                              <form
-                                onSubmit={(e) => handleAddItem(order.id, e)}
-                                className="flex flex-wrap items-end gap-2 border-t border-neutral-800 pt-3"
-                              >
-                                <select
-                                  required
-                                  value={itemProductId}
-                                  onChange={(e) => handlePickProduct(e.target.value)}
-                                  className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                                >
-                                  <option value="">Selecione o produto…</option>
-                                  {products.map((p) => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                  ))}
-                                </select>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  placeholder="Qtd."
-                                  value={itemQuantity}
-                                  onChange={(e) => setItemQuantity(e.target.value)}
-                                  className="w-20 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                                />
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="Custo unit."
-                                  value={itemUnitCost}
-                                  onChange={(e) => setItemUnitCost(e.target.value)}
-                                  className="w-28 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                                />
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="Preço unit."
-                                  value={itemUnitPrice}
-                                  onChange={(e) => setItemUnitPrice(e.target.value)}
-                                  className="w-28 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                                />
-                                <button
-                                  type="submit"
-                                  disabled={isAddingItem || isPricingItem || !itemProductId}
-                                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
-                                >
-                                  {isPricingItem ? "Calculando…" : isAddingItem ? "Adicionando…" : "Adicionar item"}
-                                </button>
-                                {!defaultCostProfile && (
-                                  <p className="w-full text-xs text-yellow-300">
-                                    Sem perfil de custo cadastrado — preencha custo/preço manualmente.
-                                  </p>
-                                )}
-                              </form>
-                            )}
-                          </td>
-                        </tr>
+                      {products.length === 0 ? (
+                        <p className="text-xs text-yellow-300">
+                          Cadastre um produto na aba Produtos para poder adicioná-lo aqui.
+                        </p>
+                      ) : (
+                        <form
+                          onSubmit={(e) => handleAddItem(order.id, e)}
+                          className="grid grid-cols-1 gap-2 border-t border-neutral-800 pt-3 sm:grid-cols-2"
+                        >
+                          <select
+                            required
+                            value={itemProductId}
+                            onChange={(e) => handlePickProduct(e.target.value)}
+                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:col-span-2"
+                          >
+                            <option value="">Selecione o produto…</option>
+                            {products.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="Qtd."
+                            value={itemQuantity}
+                            onChange={(e) => setItemQuantity(e.target.value)}
+                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Custo unit."
+                            value={itemUnitCost}
+                            onChange={(e) => setItemUnitCost(e.target.value)}
+                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Preço unit."
+                            value={itemUnitPrice}
+                            onChange={(e) => setItemUnitPrice(e.target.value)}
+                            className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                          />
+                          <button
+                            type="submit"
+                            disabled={isAddingItem || isPricingItem || !itemProductId}
+                            className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
+                          >
+                            {isPricingItem ? "Calculando…" : isAddingItem ? "Adicionando…" : "Adicionar item"}
+                          </button>
+                          {!defaultCostProfile && (
+                            <p className="text-xs text-yellow-300 sm:col-span-2">
+                              Sem perfil de custo cadastrado — preencha custo/preço manualmente.
+                            </p>
+                          )}
+                        </form>
                       )}
-                    </Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </AppShell>

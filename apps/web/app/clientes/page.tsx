@@ -154,46 +154,31 @@ export default function ClientesPage() {
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Nome</th>
-                <th className="px-4 py-3 font-medium">E-mail</th>
-                <th className="px-4 py-3 font-medium">Telefone</th>
-                <th className="px-4 py-3 font-medium">Cadastrado em</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum cliente encontrado.</td>
-                </tr>
-              ) : (
-                filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-neutral-900/50">
-                    <td className="px-4 py-3">{c.name}</td>
-                    <td className="px-4 py-3">{c.email ?? "—"}</td>
-                    <td className="px-4 py-3">{c.phone ?? "—"}</td>
-                    <td className="px-4 py-3">{formatDate(c.created_at)}</td>
-                    <td className="px-4 py-3 text-right space-x-3">
-                      <button onClick={() => startEdit(c)} className="text-sm text-blue-400 hover:underline">
-                        Editar
-                      </button>
-                      <button onClick={() => handleDelete(c)} className="text-sm text-red-400 hover:underline">
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+          {isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Carregando…</p>
+          ) : filtered.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Nenhum cliente encontrado.</p>
+          ) : (
+            filtered.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-start justify-between gap-2 p-4">
+                <div className="min-w-0 space-y-1">
+                  <p className="truncate font-medium">{c.name}</p>
+                  <p className="text-sm text-neutral-400">{c.email ?? "—"}</p>
+                  <p className="text-sm text-neutral-400">{c.phone ?? "—"}</p>
+                  <p className="text-xs text-neutral-500">Cadastrado em {formatDate(c.created_at)}</p>
+                </div>
+                <div className="flex shrink-0 gap-3 text-sm">
+                  <button onClick={() => startEdit(c)} className="text-blue-400 hover:underline">
+                    Editar
+                  </button>
+                  <button onClick={() => handleDelete(c)} className="text-red-400 hover:underline">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </AppShell>

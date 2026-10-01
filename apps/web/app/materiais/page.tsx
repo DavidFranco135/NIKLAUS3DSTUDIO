@@ -147,48 +147,34 @@ export default function MateriaisPage() {
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Nome</th>
-                <th className="px-4 py-3 font-medium">Tipo</th>
-                <th className="px-4 py-3 font-medium">Cor</th>
-                <th className="px-4 py-3 font-medium">Custo/kg</th>
-                <th className="px-4 py-3 font-medium">Fornecedor</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
-                </tr>
-              ) : materials.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Nenhum material cadastrado.</td>
-                </tr>
-              ) : (
-                materials.map((m) => (
-                  <tr key={m.id} className="hover:bg-neutral-900/50">
-                    <td className="px-4 py-3">{m.name}</td>
-                    <td className="px-4 py-3">{m.type}</td>
-                    <td className="px-4 py-3">{m.color ?? "—"}</td>
-                    <td className="px-4 py-3">{formatCurrency(m.cost_per_kg)}</td>
-                    <td className="px-4 py-3">{m.supplier ?? "—"}</td>
-                    <td className="px-4 py-3 text-right space-x-3">
-                      <button onClick={() => startEdit(m)} className="text-sm text-blue-400 hover:underline">
-                        Editar
-                      </button>
-                      <button onClick={() => handleDelete(m)} className="text-sm text-red-400 hover:underline">
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+          {isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Carregando…</p>
+          ) : materials.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Nenhum material cadastrado.</p>
+          ) : (
+            materials.map((m) => (
+              <div key={m.id} className="flex flex-wrap items-start justify-between gap-2 p-4">
+                <div className="min-w-0 space-y-1">
+                  <p className="truncate font-medium">{m.name}</p>
+                  <p className="text-sm text-neutral-400">
+                    {m.type}
+                    {m.color ? ` · ${m.color}` : ""}
+                  </p>
+                  <p className="text-sm text-neutral-400">{formatCurrency(m.cost_per_kg)}/kg</p>
+                  {m.supplier && <p className="text-xs text-neutral-500">{m.supplier}</p>}
+                </div>
+                <div className="flex shrink-0 gap-3 text-sm">
+                  <button onClick={() => startEdit(m)} className="text-blue-400 hover:underline">
+                    Editar
+                  </button>
+                  <button onClick={() => handleDelete(m)} className="text-red-400 hover:underline">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </AppShell>

@@ -897,71 +897,54 @@ export default function PrecificacaoPage() {
                     </button>
                   </div>
 
-                  <div className="overflow-x-auto rounded-xl border border-neutral-800">
-                    <table className="w-full min-w-[700px] text-left text-sm">
-                      <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-                        <tr>
-                          <th className="px-3 py-3"></th>
-                          <th className="px-3 py-3 font-medium">Peça</th>
-                          <th className="px-3 py-3 font-medium">Impressora</th>
-                          <th className="px-3 py-3 font-medium">Peso</th>
-                          <th className="px-3 py-3 font-medium">Qtd.</th>
-                          <th className="px-3 py-3 font-medium">Custo</th>
-                          <th className="px-3 py-3 font-medium">Preço</th>
-                          <th className="px-3 py-3 font-medium">Salva em</th>
-                          <th className="px-3 py-3 font-medium"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-800">
-                        {quotes.length === 0 ? (
-                          <tr>
-                            <td colSpan={9} className="px-3 py-6 text-center text-neutral-500">
-                              Nenhuma peça salva ainda — calcule uma na aba Peça.
-                            </td>
-                          </tr>
-                        ) : (
-                          quotes.map((q) => (
-                              <tr key={q.id} className="hover:bg-neutral-900/50">
-                                <td className="px-3 py-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedQuoteIds.includes(q.id)}
-                                    onChange={() => toggleQuoteSelection(q.id)}
-                                    className="rounded border-neutral-700"
-                                  />
-                                </td>
-                                <td className="px-3 py-3">{q.piece_name}</td>
-                                <td className="px-3 py-3">{q.printer_name ?? "—"}</td>
-                                <td className="px-3 py-3">{q.weight_g != null ? `${q.weight_g}g` : "—"}</td>
-                                <td className="px-3 py-3">{q.quantity}</td>
-                                <td className="px-3 py-3">{formatCurrency(q.production_cost)}</td>
-                                <td className="px-3 py-3 font-medium text-green-400">
-                                  {formatCurrency(q.final_price ?? q.suggested_price)}
-                                  {q.final_price != null && (
-                                    <span className="ml-1 text-xs font-normal text-neutral-500">(ajustado)</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-3 text-neutral-500">{formatDateTime(q.created_at)}</td>
-                                <td className="px-3 py-3 text-right space-x-3">
-                                  <button
-                                    onClick={() => handleAddPieceToProducts(q)}
-                                    disabled={addedToProductsIds.includes(q.id)}
-                                    className="text-sm text-green-400 hover:underline disabled:no-underline disabled:opacity-40"
-                                  >
-                                    {addedToProductsIds.includes(q.id) ? "Adicionado" : "Adicionar aos produtos"}
-                                  </button>
-                                  <button onClick={() => startEditPiece(q)} className="text-sm text-blue-400 hover:underline">
-                                    Editar
-                                  </button>
-                                  <button onClick={() => handleDeletePiece(q)} className="text-sm text-red-400 hover:underline">
-                                    Excluir
-                                  </button>
-                                </td>
-                              </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                  <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+                    {quotes.length === 0 ? (
+                      <p className="px-3 py-6 text-center text-sm text-neutral-500">
+                        Nenhuma peça salva ainda — calcule uma na aba Peça.
+                      </p>
+                    ) : (
+                      quotes.map((q) => (
+                        <div key={q.id} className="flex flex-wrap items-start gap-3 p-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedQuoteIds.includes(q.id)}
+                            onChange={() => toggleQuoteSelection(q.id)}
+                            className="mt-1 shrink-0 rounded border-neutral-700"
+                          />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="truncate font-medium">{q.piece_name}</p>
+                            <p className="text-sm text-neutral-400">
+                              {q.printer_name ?? "—"} · {q.weight_g != null ? `${q.weight_g}g` : "—"} · Qtd. {q.quantity}
+                            </p>
+                            <p className="text-sm text-neutral-400">
+                              Custo {formatCurrency(q.production_cost)} ·{" "}
+                              <span className="font-medium text-green-400">
+                                {formatCurrency(q.final_price ?? q.suggested_price)}
+                              </span>
+                              {q.final_price != null && (
+                                <span className="ml-1 text-xs text-neutral-500">(ajustado)</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-neutral-500">Salva em {formatDateTime(q.created_at)}</p>
+                            <div className="flex flex-wrap gap-3 pt-1 text-sm">
+                              <button
+                                onClick={() => handleAddPieceToProducts(q)}
+                                disabled={addedToProductsIds.includes(q.id)}
+                                className="text-green-400 hover:underline disabled:no-underline disabled:opacity-40"
+                              >
+                                {addedToProductsIds.includes(q.id) ? "Adicionado" : "Adicionar aos produtos"}
+                              </button>
+                              <button onClick={() => startEditPiece(q)} className="text-blue-400 hover:underline">
+                                Editar
+                              </button>
+                              <button onClick={() => handleDeletePiece(q)} className="text-red-400 hover:underline">
+                                Excluir
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

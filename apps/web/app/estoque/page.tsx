@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -238,77 +238,59 @@ export default function EstoquePage() {
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Nome</th>
-                <th className="px-4 py-3 font-medium">Categoria</th>
-                <th className="px-4 py-3 font-medium">Quantidade</th>
-                <th className="px-4 py-3 font-medium">Mínimo</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
-                </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">Nenhum item de estoque.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <Fragment key={item.id}>
-                    <tr className={item.is_low_stock ? "bg-yellow-950/20" : "hover:bg-neutral-900/50"}>
-                      <td className="px-4 py-3">
-                        {item.name}
-                        {item.is_low_stock && (
-                          <span className="ml-2 rounded bg-yellow-950 px-1.5 py-0.5 text-xs text-yellow-300">baixo</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">{CATEGORY_LABELS[item.category] ?? item.category}</td>
-                      <td className="px-4 py-3">{item.quantity_on_hand} {item.unit}</td>
-                      <td className="px-4 py-3">{item.minimum_stock} {item.unit}</td>
-                      <td className="px-4 py-3 text-right space-x-3">
-                        <button
-                          onClick={() => setMovementItemId(movementItemId === item.id ? null : item.id)}
-                          className="text-sm text-blue-400 hover:underline"
-                        >
-                          Movimentar
-                        </button>
-                        <button onClick={() => startEdit(item)} className="text-sm text-blue-400 hover:underline">
-                          Editar
-                        </button>
-                        <button onClick={() => handleDelete(item)} className="text-sm text-red-400 hover:underline">
-                          Excluir
-                        </button>
-                      </td>
-                    </tr>
-                    {movementItemId === item.id && (
-                      <tr>
-                        <td colSpan={5} className="bg-neutral-950/80 px-4 py-4">
-                          <form onSubmit={handleMovement} className="flex flex-wrap items-end gap-2">
-                            <select value={movementType} onChange={(e) => setMovementType(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm">
-                              {INVENTORY_MOVEMENT_TYPES.map((t) => (
-                                <option key={t} value={t}>{MOVEMENT_LABELS[t]}</option>
-                              ))}
-                            </select>
-                            <input required type="number" step="0.01" placeholder="Quantidade" value={movementQuantity} onChange={(e) => setMovementQuantity(e.target.value)} className="w-32 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                            <input placeholder="Observação (opcional)" value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
-                            <button type="submit" disabled={isSaving} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50">
-                              Confirmar
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+          {isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Carregando…</p>
+          ) : items.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Nenhum item de estoque.</p>
+          ) : (
+            items.map((item) => (
+              <div key={item.id} className={item.is_low_stock ? "bg-yellow-950/20 p-4" : "p-4"}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate font-medium">
+                      {item.name}
+                      {item.is_low_stock && (
+                        <span className="ml-2 rounded bg-yellow-950 px-1.5 py-0.5 text-xs text-yellow-300">baixo</span>
+                      )}
+                    </p>
+                    <p className="text-sm text-neutral-400">{CATEGORY_LABELS[item.category] ?? item.category}</p>
+                    <p className="text-sm text-neutral-400">
+                      {item.quantity_on_hand} {item.unit} (mín. {item.minimum_stock} {item.unit})
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-3 text-sm">
+                    <button
+                      onClick={() => setMovementItemId(movementItemId === item.id ? null : item.id)}
+                      className="text-blue-400 hover:underline"
+                    >
+                      Movimentar
+                    </button>
+                    <button onClick={() => startEdit(item)} className="text-blue-400 hover:underline">
+                      Editar
+                    </button>
+                    <button onClick={() => handleDelete(item)} className="text-red-400 hover:underline">
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+                {movementItemId === item.id && (
+                  <form onSubmit={handleMovement} className="mt-3 grid grid-cols-1 gap-2 rounded border border-neutral-800 bg-neutral-950/80 p-3 sm:grid-cols-2">
+                    <select value={movementType} onChange={(e) => setMovementType(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm">
+                      {INVENTORY_MOVEMENT_TYPES.map((t) => (
+                        <option key={t} value={t}>{MOVEMENT_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    <input required type="number" step="0.01" placeholder="Quantidade" value={movementQuantity} onChange={(e) => setMovementQuantity(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" />
+                    <input placeholder="Observação (opcional)" value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm sm:col-span-2" />
+                    <button type="submit" disabled={isSaving} className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50 sm:col-span-2">
+                      Confirmar
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </AppShell>

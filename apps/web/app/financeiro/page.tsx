@@ -223,59 +223,42 @@ export default function FinanceiroPage() {
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Tipo</th>
-                <th className="px-4 py-3 font-medium">Categoria</th>
-                <th className="px-4 py-3 font-medium">Valor</th>
-                <th className="px-4 py-3 font-medium">Vencimento</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Carregando…</td>
-                </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">Nenhum lançamento.</td>
-                </tr>
-              ) : (
-                transactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-neutral-900/50">
-                    <td className={`px-4 py-3 font-medium ${TYPE_TONE[t.type] ?? ""}`}>{TYPE_LABELS[t.type] ?? t.type}</td>
-                    <td className="px-4 py-3">{t.category}</td>
-                    <td className="px-4 py-3">{formatCurrency(t.amount)}</td>
-                    <td className="px-4 py-3">{formatDate(t.due_date)}</td>
-                    <td className="px-4 py-3">
-                      {t.paid_at ? (
-                        <span className="rounded bg-green-950 px-2 py-0.5 text-xs text-green-300">Pago</span>
-                      ) : (
-                        <span className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">Pendente</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-3">
-                      {!t.paid_at && (
-                        <button onClick={() => handleMarkPaid(t.id)} className="text-sm text-blue-400 hover:underline">
-                          Marcar como pago
-                        </button>
-                      )}
-                      <button onClick={() => startEdit(t)} className="text-sm text-blue-400 hover:underline">
-                        Editar
-                      </button>
-                      <button onClick={() => handleDelete(t)} className="text-sm text-red-400 hover:underline">
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="rounded-xl border border-neutral-800 divide-y divide-neutral-800">
+          {isLoading ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Carregando…</p>
+          ) : transactions.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-neutral-500">Nenhum lançamento.</p>
+          ) : (
+            transactions.map((t) => (
+              <div key={t.id} className="flex flex-wrap items-start justify-between gap-2 p-4">
+                <div className="min-w-0 space-y-1">
+                  <p className={`font-medium ${TYPE_TONE[t.type] ?? ""}`}>{TYPE_LABELS[t.type] ?? t.type}</p>
+                  <p className="truncate text-sm text-neutral-300">{t.category}</p>
+                  <p className="text-sm text-neutral-400">
+                    {formatCurrency(t.amount)} · vence {formatDate(t.due_date)}
+                  </p>
+                  {t.paid_at ? (
+                    <span className="inline-block rounded bg-green-950 px-2 py-0.5 text-xs text-green-300">Pago</span>
+                  ) : (
+                    <span className="inline-block rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">Pendente</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-3 text-sm">
+                  {!t.paid_at && (
+                    <button onClick={() => handleMarkPaid(t.id)} className="text-blue-400 hover:underline">
+                      Marcar como pago
+                    </button>
+                  )}
+                  <button onClick={() => startEdit(t)} className="text-blue-400 hover:underline">
+                    Editar
+                  </button>
+                  <button onClick={() => handleDelete(t)} className="text-red-400 hover:underline">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </AppShell>
