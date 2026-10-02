@@ -375,20 +375,21 @@ export default function LojaAdminPage() {
                     const hidden = settings.hidden_product_ids.includes(p.id);
                     const featured = settings.featured_product_ids.includes(p.id);
                     return (
-                      <li key={p.id} className="flex items-center gap-3 py-3">
+                      <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
                         <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-neutral-900">
                           {p.photo_urls[0] && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={p.photo_urls[0]} alt="" className="h-full w-full object-cover" />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 basis-40">
                           <p className={`truncate text-sm font-medium ${hidden ? "text-neutral-500 line-through" : ""}`}>{p.name}</p>
                           <p className="text-xs text-neutral-500">
                             {p.manual_price != null ? formatCurrency(p.manual_price) : "Preço calculado pela receita"}
                             {p.stock_quantity === 0 ? " · Esgotado" : ""}
                           </p>
                         </div>
+                        <div className="flex w-full gap-2 sm:w-auto">
                         <button
                           onClick={() => toggleId("featured_product_ids", p.id)}
                           disabled={hidden}
@@ -407,6 +408,7 @@ export default function LojaAdminPage() {
                         >
                           {hidden ? "Oculto" : "Visível"}
                         </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -418,7 +420,7 @@ export default function LojaAdminPage() {
       </div>
 
       {!isLoading && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur lg:left-64">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur lg:left-60">
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
             <p className="text-xs text-neutral-500">{dirty ? "Alterações não salvas" : "Tudo salvo"}</p>
             <button
