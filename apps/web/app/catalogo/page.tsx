@@ -151,6 +151,20 @@ export default function CatalogoPage() {
     }
   }
 
+  async function handleSetCover() {
+    if (!viewingProduct) return;
+    const current = viewingProduct.photo_urls[photoIndex];
+    if (!current) return;
+    setModalError(null);
+    try {
+      const urls = [current, ...viewingProduct.photo_urls.filter((u) => u !== current)];
+      await patchPhotoUrls(viewingProduct, urls);
+      setPhotoIndex(0);
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Falha ao definir capa.");
+    }
+  }
+
   if (status !== "authenticated") {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -200,6 +214,11 @@ export default function CatalogoPage() {
                         +{product.photo_urls.length - 1}
                       </span>
                     )}
+                    {product.stock_quantity === 0 && (
+                      <span className="absolute left-1 top-1 rounded-full bg-red-900/90 px-1.5 py-0.5 text-[10px] text-red-200">
+                        Esgotado
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{product.name}</p>
@@ -209,6 +228,9 @@ export default function CatalogoPage() {
                     <p className="text-sm font-medium text-green-400">
                       {price != null ? formatCurrency(price) : "—"}
                     </p>
+                    {product.stock_quantity != null && product.stock_quantity > 0 && (
+                      <p className="text-xs text-neutral-500">{product.stock_quantity} em estoque</p>
+                    )}
                   </div>
                 </button>
               );
@@ -291,6 +313,13 @@ export default function CatalogoPage() {
                     <p className="text-base font-medium text-green-400">{formatCurrency(price)}</p>
                   ) : null;
                 })()}
+                {viewingProduct.stock_quantity != null && (
+                  <p className={viewingProduct.stock_quantity === 0 ? "font-medium text-red-400" : ""}>
+                    {viewingProduct.stock_quantity === 0
+                      ? "Esgotado"
+                      : `${viewingProduct.stock_quantity} em estoque`}
+                  </p>
+                )}
               </div>
 
               {modalError && <p className="rounded bg-red-950 p-2 text-xs text-red-300">{modalError}</p>}
@@ -310,6 +339,13 @@ export default function CatalogoPage() {
                   className="rounded bg-blue-600 px-3 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50"
                 >
                   {isUploadingPhoto ? "Enviando…" : "Editar (adicionar foto)"}
+                </button>
+                <button
+                  onClick={handleSetCover}
+                  disabled={viewingProduct.photo_urls.length < 2 || photoIndex === 0}
+                  className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-neutral-500 disabled:opacity-30"
+                >
+                  Definir como capa
                 </button>
                 <button
                   onClick={handleDeletePhoto}

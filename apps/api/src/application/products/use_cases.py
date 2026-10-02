@@ -30,6 +30,7 @@ def create_product(
     manual_price: float | None = None,
     size: str | None = None,
     photo_urls: list[str] | None = None,
+    stock_quantity: int | None = None,
     materials: list[dict],
 ) -> Product:
     """`materials` is a list of {"material_id": UUID, "quantity_g": float} —
@@ -57,6 +58,7 @@ def create_product(
         manual_price=manual_price,
         size=size,
         photo_urls=photo_urls,
+        stock_quantity=stock_quantity,
     )
     material_repo = ProductMaterialRepository(db)
     for line in materials:
@@ -100,6 +102,7 @@ def update_product(
     manual_price: float | None = None,
     size: str | None = None,
     photo_urls: list[str] | None = None,
+    stock_quantity: int | None = None,
     materials: list[dict] | None,
 ) -> Product:
     """`materials`, when provided, fully replaces the product's BOM (the
@@ -125,6 +128,8 @@ def update_product(
         product.size = size
     if photo_urls is not None:
         product.photo_urls = photo_urls
+    if stock_quantity is not None:
+        product.stock_quantity = stock_quantity
     if materials is not None:
         for line in materials:
             get_material(db, organization_id=organization_id, material_id=line["material_id"])

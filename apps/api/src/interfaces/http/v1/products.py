@@ -32,6 +32,7 @@ def _to_response(db: Session, product) -> ProductResponse:
         manual_price=product.manual_price,
         size=product.size,
         photo_urls=product.photo_urls,
+        stock_quantity=product.stock_quantity,
         is_active=product.is_active,
         created_at=product.created_at,
         materials=materials,
@@ -58,6 +59,7 @@ def create_product(
             manual_price=payload.manual_price,
             size=payload.size,
             photo_urls=payload.photo_urls,
+            stock_quantity=payload.stock_quantity,
             materials=[m.model_dump() for m in payload.materials],
         )
     except DomainError as exc:
@@ -190,6 +192,7 @@ def update_product(
             manual_price=payload.manual_price,
             size=payload.size,
             photo_urls=payload.photo_urls,
+            stock_quantity=payload.stock_quantity,
             materials=(
                 [m.model_dump() for m in payload.materials]
                 if payload.materials is not None

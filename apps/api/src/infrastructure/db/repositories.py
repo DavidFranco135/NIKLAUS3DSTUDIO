@@ -627,6 +627,7 @@ class ProductRepository:
         manual_price: float | None = None,
         size: str | None = None,
         photo_urls: list[str] | None = None,
+        stock_quantity: int | None = None,
     ) -> Product:
         product = Product(
             organization_id=organization_id,
@@ -637,6 +638,7 @@ class ProductRepository:
             manual_price=manual_price,
             size=size,
             photo_urls=photo_urls or [],
+            stock_quantity=stock_quantity,
         )
         self.session.add(product)
         self.session.flush()

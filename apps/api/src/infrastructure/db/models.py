@@ -240,6 +240,8 @@ class Product(Base):
     )
     size: Mapped[str | None] = mapped_column(String(100), nullable=True)
     photo_urls: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # None = estoque não controlado (sempre disponível); 0 = esgotado.
+    stock_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

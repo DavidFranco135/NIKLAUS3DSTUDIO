@@ -405,6 +405,7 @@ class CreateProductRequest(BaseModel):
     manual_price: float | None = Field(default=None, ge=0)
     size: str | None = Field(default=None, max_length=100)
     photo_urls: list[str] = Field(default_factory=list)
+    stock_quantity: int | None = Field(default=None, ge=0)
     materials: list[ProductMaterialInput] = Field(default_factory=list)
 
 
@@ -416,6 +417,7 @@ class UpdateProductRequest(BaseModel):
     manual_price: float | None = Field(default=None, ge=0)
     size: str | None = Field(default=None, max_length=100)
     photo_urls: list[str] | None = None
+    stock_quantity: int | None = Field(default=None, ge=0)
     materials: list[ProductMaterialInput] | None = None
 
 
@@ -433,6 +435,7 @@ class ProductResponse(BaseModel):
     manual_price: float | None
     size: str | None
     photo_urls: list[str] = Field(default_factory=list)
+    stock_quantity: int | None
     is_active: bool
     created_at: datetime
     materials: list[ProductMaterialResponse] = Field(default_factory=list)

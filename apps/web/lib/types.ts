@@ -285,6 +285,7 @@ export type Product = {
   manual_price: number | null;
   size: string | null;
   photo_urls: string[];
+  stock_quantity: number | null;
   is_active: boolean;
   created_at: string;
   materials: ProductMaterialLine[];

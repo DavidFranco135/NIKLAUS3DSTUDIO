@@ -34,6 +34,7 @@ export default function ProdutosPage() {
   const [size, setSize] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [stockQuantity, setStockQuantity] = useState("");
 
   const orgPath = `/api/v1/organizations/${currentOrganizationId}`;
 
@@ -107,6 +108,7 @@ export default function ProdutosPage() {
     setManualPrice("");
     setSize("");
     setPhotoUrls([]);
+    setStockQuantity("");
     setMode("completo");
     setEditingId(null);
     setShowForm(false);
@@ -134,6 +136,10 @@ export default function ProdutosPage() {
     setPhotoUrls((urls) => urls.filter((u) => u !== url));
   }
 
+  function setCoverPhoto(url: string) {
+    setPhotoUrls((urls) => [url, ...urls.filter((u) => u !== url)]);
+  }
+
   function startEdit(product: Product) {
     setEditingId(product.id);
     setName(product.name);
@@ -151,6 +157,7 @@ export default function ProdutosPage() {
     setManualPrice(product.manual_price != null ? String(product.manual_price) : "");
     setSize(product.size ?? "");
     setPhotoUrls(product.photo_urls ?? []);
+    setStockQuantity(product.stock_quantity != null ? String(product.stock_quantity) : "");
     setMode(product.manual_price != null ? "simples" : "completo");
     setShowForm(true);
   }
@@ -170,6 +177,7 @@ export default function ProdutosPage() {
         manual_price: mode === "simples" ? Number(manualPrice) : null,
         size: size || null,
         photo_urls: photoUrls,
+        stock_quantity: stockQuantity !== "" ? Number(stockQuantity) : null,
         materials: validLines.map((l) => ({
           material_id: l.material_id,
           quantity_g: Number(l.quantity_g),
@@ -291,6 +299,18 @@ export default function ProdutosPage() {
                   <input placeholder="Tamanho (opcional, ex: 10x5x3cm)" value={size} onChange={(e) => setSize(e.target.value)} className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-2" />
                 </>
               )}
+              <input
+                type="number"
+                step="1"
+                min="0"
+                placeholder="Quantidade em estoque (opcional, 0 = esgotado)"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(e.target.value)}
+                className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 sm:col-span-2"
+              />
+              <p className="text-xs text-neutral-500 sm:col-span-2">
+                Deixe em branco para não controlar estoque (sempre disponível).
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -299,9 +319,26 @@ export default function ProdutosPage() {
               {isUploadingPhoto && <p className="text-xs text-neutral-500">Enviando foto…</p>}
               {photoUrls.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {photoUrls.map((url) => (
+                  {photoUrls.map((url, i) => (
                     <div key={url} className="relative">
-                      <img src={url} alt="" className="h-20 w-20 rounded object-cover" />
+                      <img
+                        src={url}
+                        alt=""
+                        className={`h-20 w-20 rounded object-cover ${i === 0 ? "ring-2 ring-blue-500" : ""}`}
+                      />
+                      {i === 0 ? (
+                        <span className="absolute bottom-0 left-0 right-0 rounded-b bg-blue-600/90 py-0.5 text-center text-[10px] text-white">
+                          Capa
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setCoverPhoto(url)}
+                          className="absolute bottom-0 left-0 right-0 rounded-b bg-black/70 py-0.5 text-center text-[10px] text-neutral-200 hover:bg-black/90"
+                        >
+                          Definir capa
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => removePhoto(url)}
@@ -402,11 +439,24 @@ export default function ProdutosPage() {
                         )}
                       </div>
                     </div>
-                    {product.print_time_hours != null && (
-                      <span className="shrink-0 rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
-                        {product.print_time_hours}h
-                      </span>
-                    )}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {product.print_time_hours != null && (
+                        <span className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
+                          {product.print_time_hours}h
+                        </span>
+                      )}
+                      {product.stock_quantity != null && (
+                        <span
+                          className={`rounded px-2 py-0.5 text-xs ${
+                            product.stock_quantity === 0
+                              ? "bg-red-950 text-red-300"
+                              : "bg-neutral-800 text-neutral-400"
+                          }`}
+                        >
+                          {product.stock_quantity === 0 ? "Esgotado" : `${product.stock_quantity} em estoque`}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {product.materials.length > 0 && (
