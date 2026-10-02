@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { apiFetch, ApiError } from "./api-client";
 import type { AuthResponse, MeResponse, Membership, User } from "./types";
 
@@ -77,6 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [organizations, setOrganizations] = useState<Membership[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
+  const pathname = usePathname();
+  // The public storefront needs no session - skip the refresh round-trip there.
+  const isPublicPage = pathname === "/loja" || pathname?.startsWith("/loja/") === true;
 
   const loadMe = useCallback(async (token: string) => {
     const me = await apiFetch<MeResponse>("/api/v1/users/me", { accessToken: token });
@@ -86,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (isPublicPage) return;
     (async () => {
       try {
         const tokens = await refreshSession();
@@ -96,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus("unauthenticated");
       }
     })();
-  }, [loadMe]);
+  }, [loadMe, isPublicPage]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -156,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        status,
+        status: isPublicPage ? "unauthenticated" : status,
         user,
         organizations,
         accessToken,

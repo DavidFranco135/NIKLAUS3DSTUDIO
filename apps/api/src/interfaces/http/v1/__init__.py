@@ -16,6 +16,8 @@ from src.interfaces.http.v1.orders import router as orders_router
 from src.interfaces.http.v1.organizations import router as organizations_router
 from src.interfaces.http.v1.products import router as products_router
 from src.interfaces.http.v1.projects import router as projects_router
+from src.interfaces.http.v1.store import public_router as store_public_router
+from src.interfaces.http.v1.store import router as store_router
 from src.interfaces.http.v1.uploads import router as uploads_router
 from src.interfaces.http.v1.users import router as users_router
 
@@ -38,3 +40,5 @@ router.include_router(machines_router)
 router.include_router(billing_router)
 router.include_router(billing_global_router)
 router.include_router(admin_migrate_router)
+router.include_router(store_router)
+router.include_router(store_public_router)

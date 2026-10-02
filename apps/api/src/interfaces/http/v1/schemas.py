@@ -666,3 +666,74 @@ class UsageItemResponse(BaseModel):
 
 class ImageUploadResponse(BaseModel):
     url: str
+
+
+class StoreSlide(BaseModel):
+    url: str = Field(max_length=2000)
+    title: str = Field(default="", max_length=120)
+    subtitle: str = Field(default="", max_length=240)
+
+
+class StoreHighlight(BaseModel):
+    title: str = Field(default="", max_length=80)
+    text: str = Field(default="", max_length=240)
+
+
+class StoreSettings(BaseModel):
+    """Everything the shop owner manages for the public storefront; stored
+
+    under `Organization.settings["store"]`.
+    """
+
+    display_name: str = Field(default="", max_length=120)
+    tagline: str = Field(default="", max_length=200)
+    about: str = Field(default="", max_length=2000)
+    whatsapp: str = Field(default="5521970386065", max_length=20)
+    instagram: str = Field(default="", max_length=120)
+    hours: str = Field(default="", max_length=300)
+    address: str = Field(default="", max_length=300)
+    accent: str = Field(default="indigo", max_length=20)
+    theme: str = Field(default="light", pattern="^(light|dark)$")
+    slides: list[StoreSlide] = Field(default_factory=list, max_length=10)
+    highlights: list[StoreHighlight] = Field(default_factory=list, max_length=3)
+    hidden_product_ids: list[str] = Field(default_factory=list)
+    featured_product_ids: list[str] = Field(default_factory=list)
+
+
+class StoreAdminResponse(BaseModel):
+    slug: str
+    name: str
+    settings: StoreSettings
+
+
+class PublicProduct(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    size: str | None
+    photo_urls: list[str]
+    price: float
+    stock_quantity: int | None
+    available: bool
+    featured: bool
+
+
+class PublicStoreSettings(BaseModel):
+    display_name: str
+    tagline: str
+    about: str
+    whatsapp: str
+    instagram: str
+    hours: str
+    address: str
+    accent: str
+    theme: str
+    slides: list[StoreSlide]
+    highlights: list[StoreHighlight]
+
+
+class PublicStoreResponse(BaseModel):
+    slug: str
+    name: str
+    settings: PublicStoreSettings
+    products: list[PublicProduct]

@@ -125,10 +125,21 @@ function IconGrid({ className }: { className?: string }) {
   );
 }
 
+function IconStore({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 9l1.5-5h13L20 9" />
+      <path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9" />
+      <path d="M5 12v8h14v-8M10 20v-4h4v4" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Painel", icon: IconHome },
   { href: "/produtos", label: "Produtos", icon: IconTag },
   { href: "/catalogo", label: "Catálogo", icon: IconGrid },
+  { href: "/loja-admin", label: "Minha Loja", icon: IconStore },
   { href: "/projetos", label: "Projetos", icon: IconBox },
   { href: "/pedidos", label: "Pedidos", icon: IconClipboard },
   { href: "/clientes", label: "Clientes", icon: IconUsers },

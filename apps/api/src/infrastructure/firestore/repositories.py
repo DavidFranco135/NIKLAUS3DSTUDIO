@@ -112,6 +112,12 @@ class OrganizationRepository:
     def slug_exists(self, slug: str) -> bool:
         return self.client.collection("slug_index").document(slug).get().exists
 
+    def get_by_slug(self, slug: str) -> Organization | None:
+        index_snap = self.client.collection("slug_index").document(slug).get()
+        if not index_snap.exists:
+            return None
+        return self.get_by_id(UUID(index_snap.to_dict()["organization_id"]))
+
     def create(self, *, name: str, slug: str) -> Organization:
         org = Organization(name=name, slug=slug)
         doc_ref = _org_ref(self.client, org.id)

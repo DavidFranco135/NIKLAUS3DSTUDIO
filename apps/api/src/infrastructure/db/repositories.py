@@ -64,6 +64,9 @@ class OrganizationRepository:
         stmt = select(Organization).where(Organization.slug == slug)
         return self.session.scalar(stmt) is not None
 
+    def get_by_slug(self, slug: str) -> Organization | None:
+        return self.session.scalar(select(Organization).where(Organization.slug == slug))
+
     def create(self, *, name: str, slug: str) -> Organization:
         organization = Organization(name=name, slug=slug)
         self.session.add(organization)
