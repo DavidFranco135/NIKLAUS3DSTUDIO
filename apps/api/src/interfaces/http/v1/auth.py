@@ -7,7 +7,13 @@ from src.domain.auth.dto import TokenPair
 from src.domain.shared.exceptions import DomainError
 from src.interfaces.http.dependencies import get_db
 from src.interfaces.http.errors import as_http_exception
-from src.interfaces.http.v1.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from src.interfaces.http.v1.schemas import (
+    AuthResponse,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -56,33 +62,46 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         raise as_http_exception(exc) from exc
 
     _set_refresh_cookie(response, tokens)
-    return AuthResponse(access_token=tokens.access_token, user=UserResponse.model_validate(user))
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token if payload.remember_me else None,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post("/refresh", response_model=AuthResponse)
 def refresh(
     response: Response,
+    payload: RefreshRequest | None = None,
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> AuthResponse:
-    if refresh_token is None:
+    body_token = payload.refresh_token if payload else None
+    token = body_token or refresh_token
+    if token is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing refresh token")
 
     try:
-        user, tokens = use_cases.refresh_session(db, refresh_token_plaintext=refresh_token)
+        user, tokens = use_cases.refresh_session(db, refresh_token_plaintext=token)
     except DomainError as exc:
         raise as_http_exception(exc) from exc
 
     _set_refresh_cookie(response, tokens)
-    return AuthResponse(access_token=tokens.access_token, user=UserResponse.model_validate(user))
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token if body_token else None,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     response: Response,
+    payload: RefreshRequest | None = None,
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> None:
-    if refresh_token is not None:
-        use_cases.logout(db, refresh_token_plaintext=refresh_token)
+    token = (payload.refresh_token if payload else None) or refresh_token
+    if token is not None:
+        use_cases.logout(db, refresh_token_plaintext=token)
     response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiFetch } from "./api-client";
+import { apiFetch, ApiError } from "./api-client";
 import type { AuthResponse, MeResponse, Membership, User } from "./types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -13,7 +13,7 @@ type AuthContextValue = {
   accessToken: string | null;
   currentOrganizationId: string | null;
   setCurrentOrganizationId: (id: string) => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (
     organizationName: string,
     fullName: string,
@@ -24,6 +24,52 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+const REFRESH_STORAGE_KEY = "studio_refresh_token";
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
+function readStoredRefreshToken(): string | null {
+  try {
+    return window.localStorage.getItem(REFRESH_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredRefreshToken(token: string | null): void {
+  try {
+    if (token) window.localStorage.setItem(REFRESH_STORAGE_KEY, token);
+    else window.localStorage.removeItem(REFRESH_STORAGE_KEY);
+  } catch {
+    // storage unavailable (private mode etc.) - cookie-only session
+  }
+}
+
+// Refresh tokens rotate on use, so two concurrent refreshes with the same
+// token would make the second fail and log the user out; share one call.
+let refreshInFlight: Promise<AuthResponse> | null = null;
+
+function refreshSession(): Promise<AuthResponse> {
+  if (!refreshInFlight) {
+    const stored = readStoredRefreshToken();
+    refreshInFlight = apiFetch<AuthResponse>("/api/v1/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: stored }),
+    })
+      .then((tokens) => {
+        if (stored && tokens.refresh_token) writeStoredRefreshToken(tokens.refresh_token);
+        return tokens;
+      })
+      .catch((err) => {
+        if (stored && err instanceof ApiError && err.status === 401) writeStoredRefreshToken(null);
+        throw err;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -42,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const tokens = await apiFetch<AuthResponse>("/api/v1/auth/refresh", { method: "POST" });
+        const tokens = await refreshSession();
         setAccessToken(tokens.access_token);
         await loadMe(tokens.access_token);
         setStatus("authenticated");
@@ -52,12 +98,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [loadMe]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const intervalId = setInterval(() => {
+      refreshSession()
+        .then((tokens) => setAccessToken(tokens.access_token))
+        .catch(() => undefined);
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [status]);
+
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, rememberMe = false) => {
       const tokens = await apiFetch<AuthResponse>("/api/v1/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember_me: rememberMe }),
       });
+      writeStoredRefreshToken(rememberMe ? (tokens.refresh_token ?? null) : null);
       setAccessToken(tokens.access_token);
       await loadMe(tokens.access_token);
       setStatus("authenticated");
@@ -84,7 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await apiFetch("/api/v1/auth/logout", { method: "POST" }).catch(() => undefined);
+    await apiFetch("/api/v1/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: readStoredRefreshToken() }),
+    }).catch(() => undefined);
+    writeStoredRefreshToken(null);
     setAccessToken(null);
     setUser(null);
     setOrganizations([]);

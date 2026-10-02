@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # plan.
     db_backend: str = "postgres"
 
+    # Gates POST /internal/migrate-firestore (the one-time Postgres ->
+    # Firestore data copy for the Phase 5 cutover). Empty = endpoint always
+    # refuses, so it's safe even if left wired up after the migration.
+    migration_secret: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.api_cors_origins.split(",") if origin.strip()]

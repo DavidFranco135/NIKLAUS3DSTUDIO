@@ -16,6 +16,14 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    # Opt-in "Manter conectado": only then is the refresh token also returned
+    # in the response body (for the browser to keep on the device), because
+    # the cross-site cookie alone is often blocked on mobile.
+    remember_me: bool = False
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -43,6 +51,7 @@ class MembershipResponse(BaseModel):
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    refresh_token: str | None = None
     user: UserResponse
 
 

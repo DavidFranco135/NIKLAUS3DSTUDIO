@@ -11,6 +11,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Falha ao entrar.");
@@ -59,6 +60,15 @@ export default function LoginPage() {
             className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2"
           />
         </div>
+        <label className="flex items-center gap-2 text-sm text-neutral-300">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Manter conectado neste aparelho
+        </label>
         <button
           type="submit"
           disabled={isSubmitting}

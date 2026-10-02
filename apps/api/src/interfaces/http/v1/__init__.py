@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from src.interfaces.http.v1.admin_migrate import router as admin_migrate_router
 from src.interfaces.http.v1.auth import router as auth_router
 from src.interfaces.http.v1.billing import global_router as billing_global_router
 from src.interfaces.http.v1.billing import router as billing_router
@@ -36,3 +37,4 @@ router.include_router(dashboard_router)
 router.include_router(machines_router)
 router.include_router(billing_router)
 router.include_router(billing_global_router)
+router.include_router(admin_migrate_router)

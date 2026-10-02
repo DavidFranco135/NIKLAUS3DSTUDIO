@@ -39,6 +39,7 @@ _SECRETS = [
     "S3_REGION",
     "API_CORS_ORIGINS",
     "IMGBB_API_KEY",
+    "MIGRATION_SECRET", "DB_BACKEND",
 ]
 
 
@@ -92,7 +93,7 @@ def _call_asgi_via_wsgi_environ(environ: dict) -> tuple[bytes, int, list[tuple[s
 @https_fn.on_request(
     invoker="public",
     memory=options.MemoryOption.GB_1,
-    timeout_sec=60,
+    timeout_sec=300,
     min_instances=1,
     secrets=_SECRETS,
 )

@@ -456,6 +456,7 @@ export default function PrecificacaoPage() {
           description: null,
           print_time_hours: null,
           machine_id: null,
+          manual_price: q.final_price ?? q.suggested_price,
           materials: [],
         }),
       });
