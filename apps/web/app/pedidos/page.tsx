@@ -41,6 +41,103 @@ function nextStatus(current: string): string | null {
   return ORDER_STATUSES[idx + 1];
 }
 
+const PROGRESS_STEPS = ORDER_STATUSES.filter((s) => s !== "cancelled");
+
+function addressText(address: Customer["address"]): string | null {
+  if (!address) return null;
+  const parts = Object.values(address).filter((v) => typeof v === "string" && v.trim() !== "");
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="break-words text-sm text-neutral-200">{value}</p>
+    </div>
+  );
+}
+
+function OrderSummary({
+  order,
+  customer,
+  items,
+}: {
+  order: Order;
+  customer: Customer | null;
+  items: OrderItem[] | undefined;
+}) {
+  const stepIndex = PROGRESS_STEPS.indexOf(order.status as (typeof PROGRESS_STEPS)[number]);
+  const cancelled = order.status === "cancelled";
+  const totalCost = (items ?? []).reduce((sum, i) => sum + (i.unit_cost ?? 0) * i.quantity, 0);
+  const totalRevenue = (items ?? []).reduce((sum, i) => sum + (i.unit_price ?? 0) * i.quantity, 0);
+  const profit = totalRevenue - totalCost;
+  const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : null;
+  const quantityTotal = (items ?? []).reduce((sum, i) => sum + i.quantity, 0);
+  const address = customer ? addressText(customer.address) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1">
+        {cancelled ? (
+          <span className="rounded bg-red-950 px-2 py-0.5 text-xs text-red-300">Cancelado</span>
+        ) : (
+          PROGRESS_STEPS.map((step, i) => (
+            <span
+              key={step}
+              className={`rounded px-2 py-0.5 text-[11px] ${
+                i === stepIndex
+                  ? "bg-blue-600 text-white"
+                  : i < stepIndex
+                    ? "bg-neutral-800 text-neutral-300"
+                    : "bg-neutral-900 text-neutral-600"
+              }`}
+            >
+              {STATUS_LABELS[step]}
+            </span>
+          ))
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <InfoRow label="Cliente" value={customer?.name ?? "—"} />
+        <InfoRow label="Telefone" value={customer?.phone || "—"} />
+        <InfoRow label="E-mail" value={customer?.email || "—"} />
+        <InfoRow label="Documento" value={customer?.document || "—"} />
+        {address && (
+          <div className="sm:col-span-2">
+            <InfoRow label="Endereço" value={address} />
+          </div>
+        )}
+        <InfoRow label="Criado em" value={formatDate(order.created_at)} />
+        <InfoRow label="Pedido" value={`#${order.id.slice(0, 8)}`} />
+        <div className="sm:col-span-2">
+          <InfoRow label="Observações" value={order.notes || "—"} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 rounded border border-neutral-800 bg-neutral-900/50 p-3 sm:grid-cols-4">
+        <InfoRow label="Itens" value={items ? `${items.length} (${quantityTotal} un.)` : "…"} />
+        <InfoRow label="Custo total" value={items ? formatCurrency(totalCost) : "…"} />
+        <InfoRow label="Valor do pedido" value={formatCurrency(order.total_amount)} />
+        <InfoRow
+          label="Lucro estimado"
+          value={
+            items ? (
+              <span className={profit >= 0 ? "text-green-400" : "text-red-400"}>
+                {formatCurrency(profit)}
+                {margin != null ? ` (${margin.toFixed(0)}%)` : ""}
+              </span>
+            ) : (
+              "…"
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function PedidosPage() {
   const { status, accessToken, currentOrganizationId } = useAuth();
   const router = useRouter();
@@ -427,8 +524,19 @@ export default function PedidosPage() {
                     Total: <span className="font-medium text-neutral-100">{formatCurrency(order.total_amount)}</span>
                   </p>
                   <div className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
-                    <button onClick={() => toggleItems(order.id)} className="text-blue-400 hover:underline">
-                      Itens
+                    <button
+                      onClick={() => toggleItems(order.id)}
+                      aria-expanded={expandedOrderId === order.id}
+                      className="flex items-center gap-1 text-blue-400 hover:underline"
+                    >
+                      Detalhes
+                      <span
+                        className={`inline-block text-xs transition-transform duration-300 ${
+                          expandedOrderId === order.id ? "rotate-180" : ""
+                        }`}
+                      >
+                        ▾
+                      </span>
                     </button>
                     {next && (
                       <button onClick={() => handleAdvance(order)} className="text-green-400 hover:underline">
@@ -468,8 +576,19 @@ export default function PedidosPage() {
                       </div>
                     </div>
                   )}
-                  {expandedOrderId === order.id && (
+                  <div
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                      expandedOrderId === order.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                  {(expandedOrderId === order.id || itemsByOrder[order.id] !== undefined) && (
                     <div className="space-y-4 rounded border border-neutral-800 bg-neutral-950/80 p-3">
+                      <OrderSummary
+                        order={order}
+                        customer={customers.find((c) => c.id === order.customer_id) ?? null}
+                        items={itemsByOrder[order.id]}
+                      />
                       {!itemsByOrder[order.id] ? (
                         <p className="text-sm text-neutral-500">Carregando itens…</p>
                       ) : itemsByOrder[order.id].length === 0 ? (
@@ -479,8 +598,14 @@ export default function PedidosPage() {
                           {itemsByOrder[order.id].map((item) => (
                             <li key={item.id} className="space-y-2">
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="min-w-0 flex-1 truncate">
-                                  {productName(item.product_id)} · Qtd. {item.quantity} — {item.status}
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate">
+                                    {productName(item.product_id)} · Qtd. {item.quantity} — {item.status}
+                                  </span>
+                                  <span className="block text-xs text-neutral-500">
+                                    Unit.: {formatCurrency(item.unit_price ?? 0)} · Custo unit.:{" "}
+                                    {formatCurrency(item.unit_cost ?? 0)}
+                                  </span>
                                 </span>
                                 <span className="shrink-0">{formatCurrency((item.unit_price ?? 0) * item.quantity)}</span>
                                 <span className="shrink-0 space-x-2">
@@ -594,6 +719,8 @@ export default function PedidosPage() {
                       )}
                     </div>
                   )}
+                    </div>
+                  </div>
                 </div>
               );
             })
